@@ -21,20 +21,38 @@ with DAG(
     tags=['example'],
 ) as dag:
 
-    run_pod = KubernetesPodOperator(
-        task_id='run_simple_pod',
-        name='airflow-simple-pod',
+    # GH Archive 데이터 수집 태스크
+    collect_gh_archive = KubernetesPodOperator(
+        task_id='collect_gh_archive',
+        name='gh-archive-collector',
         namespace='default',
-        image='python:3.9-slim',
-        image_pull_policy='IfNotPresent',  # 이미지 풀 정책 추가
+        image='python:3.11-slim',
+        image_pull_policy='IfNotPresent',
         cmds=['bash', '-cx'],
-        arguments=['echo "Hello from Airflow 3.0.2!"'],
-        labels={'example': 'true'},
+        arguments=[
+            'pip install pandas requests deltalake s3fs && '
+            'python /scripts/gh_archive_daily_collector.py {{ ds }} CausalInferenceLab'
+        ],
+        labels={'gh-archive': 'true'},
         get_logs=True,
         is_delete_operator_pod=True,
         in_cluster=True,
-        startup_timeout_seconds=300,  # 시작 타임아웃 추가
-        service_account_name='airflow',  # 서비스 계정 명시
+        startup_timeout_seconds=300,
+        service_account_name='airflow',
+        volumes=[
+            {
+                'name': 'scripts-volume',
+                'configMap': {
+                    'name': 'gh-archive-scripts'
+                }
+            }
+        ],
+        volume_mounts=[
+            {
+                'name': 'scripts-volume',
+                'mountPath': '/scripts'
+            }
+        ]
     )
 
-    run_pod
+    collect_gh_archive
