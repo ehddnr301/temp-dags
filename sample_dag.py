@@ -1,46 +1,37 @@
 from datetime import datetime, timedelta
+
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
+
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 1, 1),
-    'email_on_failure': False,
-    'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
 
-def print_hello():
-    return "Hello from MinIO DAG!"
-
-def print_world():
-    return "World from MinIO DAG!"
-
 with DAG(
-    'sample_minio_dag',
+    dag_id='example_kubernetes_pod_airflow_3_0_2',
     default_args=default_args,
-    description='A sample DAG loaded from MinIO',
-    schedule_interval=timedelta(days=1),
+    start_date=datetime(2025, 7, 10),
+    schedule='@daily',
     catchup=False,
-    tags=['sample', 'minio'],
+    tags=['example'],
 ) as dag:
 
-    hello_task = PythonOperator(
-        task_id='hello_task',
-        python_callable=print_hello,
+    run_pod = KubernetesPodOperator(
+        task_id='run_simple_pod',
+        name='airflow-simple-pod',
+        namespace='default',
+        image='python:3.9-slim',
+        cmds=['bash', '-cx'],
+        arguments=['echo "Hello from Airflow 3.0.2!"'],
+        labels={'example': 'true'},
+        get_logs=True,
+        is_delete_operator_pod=True,
+        in_cluster=True,
     )
 
-    world_task = PythonOperator(
-        task_id='world_task',
-        python_callable=print_world,
-    )
-
-    bash_task = BashOperator(
-        task_id='bash_task',
-        bash_command='echo "Bash task from MinIO DAG!"',
-    )
-
-    hello_task >> world_task >> bash_task 
+    run_pod
