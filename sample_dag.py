@@ -34,12 +34,6 @@ with DAG(
         is_delete_operator_pod=True,
         in_cluster=True,
         startup_timeout_seconds=300,  # 시작 타임아웃 추가
-        container_resources={
-            'request_memory': '128Mi',
-            'request_cpu': '100m',
-            'limit_memory': '256Mi',
-            'limit_cpu': '200m'
-        }
     )
 
     run_pod
