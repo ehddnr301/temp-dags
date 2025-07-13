@@ -25,8 +25,8 @@ with DAG(
         task_id='run_simple_pod',
         name='airflow-simple-pod-busybox',
         namespace='default',
-        image='busybox:latest',  # 더 간단한 이미지 사용
-        image_pull_policy='IfNotPresent',
+        image='busybox:1.35',  # 특정 버전 사용
+        image_pull_policy='Always',  # 항상 이미지를 가져오도록 설정
         cmds=['echo'],
         arguments=['Hello from Airflow with busybox!'],
         labels={'example': 'true'},
