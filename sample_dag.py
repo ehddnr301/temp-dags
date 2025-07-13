@@ -28,31 +28,16 @@ with DAG(
         task_id='collect_gh_archive',
         name='gh-archive-collector',
         namespace='default',
-        image='python:3.11-slim',
-        image_pull_policy='IfNotPresent',
-        cmds=['bash', '-cx'],
-        arguments=[
-            'pip install pandas requests deltalake s3fs && '
-            'python /scripts/gh_archive_daily_collector.py {{ ds }} CausalInferenceLab'
-        ],
+        image='ehddnr/gh-archive-collector:latest',  # Docker 이미지 사용
+        image_pull_policy='Always',
+        cmds=['python'],
+        arguments=['/app/gh_archive_daily_collector.py', '{{ ds }}', 'CausalInferenceLab'],
         labels={'gh-archive': 'true'},
         get_logs=True,
         is_delete_operator_pod=True,
         in_cluster=True,
         startup_timeout_seconds=300,
         service_account_name='airflow',
-        volumes=[
-            k8s.V1Volume(
-                name="scripts-volume",
-                config_map=k8s.V1ConfigMapVolumeSource(name="gh-archive-scripts")
-            )
-        ],
-        volume_mounts=[
-            k8s.V1VolumeMount(
-                name="scripts-volume",
-                mount_path="/scripts"
-            )
-        ],
     )
 
     collect_gh_archive
