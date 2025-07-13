@@ -34,6 +34,7 @@ with DAG(
         is_delete_operator_pod=True,
         in_cluster=True,
         startup_timeout_seconds=300,  # 시작 타임아웃 추가
+        service_account_name='airflow',  # 서비스 계정 명시
     )
 
     run_pod

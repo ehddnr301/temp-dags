@@ -35,12 +35,6 @@ with DAG(
         in_cluster=True,
         startup_timeout_seconds=300,
         service_account_name='airflow',  # 서비스 계정 명시
-        container_resources={
-            'request_memory': '64Mi',
-            'request_cpu': '50m',
-            'limit_memory': '128Mi',
-            'limit_cpu': '100m'
-        }
     )
 
     run_pod 
