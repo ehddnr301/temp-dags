@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 from airflow import DAG
 
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.backcompat.volume import Volume
-from airflow.providers.cncf.kubernetes.backcompat.volume_mount import VolumeMount
+
+from kubernetes.client import models as k8s
 
 
 default_args = {
@@ -42,13 +42,13 @@ with DAG(
         startup_timeout_seconds=300,
         service_account_name='airflow',
         volumes=[
-            Volume(
+            k8s.V1Volume(
                 name="scripts-volume",
-                configs={"configMap": {"name": "gh-archive-scripts"}}
+                config_map=k8s.V1ConfigMapVolumeSource(name="gh-archive-scripts")
             )
         ],
         volume_mounts=[
-            VolumeMount(
+            k8s.V1VolumeMount(
                 name="scripts-volume",
                 mount_path="/scripts"
             )
