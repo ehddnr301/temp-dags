@@ -26,7 +26,7 @@ with DAG(
         name='airflow-simple-pod-busybox',
         namespace='default',
         image='busybox:1.35',  # 특정 버전 사용
-        image_pull_policy='Always',  # 항상 이미지를 가져오도록 설정
+        image_pull_policy='IfNotPresent',  # 로컬에 있으면 사용
         cmds=['echo'],
         arguments=['Hello from Airflow with busybox!'],
         labels={'example': 'true'},
@@ -34,6 +34,7 @@ with DAG(
         is_delete_operator_pod=True,
         in_cluster=True,
         startup_timeout_seconds=300,
+        service_account_name='airflow',  # 서비스 계정 명시
         container_resources={
             'request_memory': '64Mi',
             'request_cpu': '50m',
