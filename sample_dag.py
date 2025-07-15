@@ -18,9 +18,10 @@ with DAG(
     dag_id='example_kubernetes_pod_airflow_3_0_2',
     default_args=default_args,
     start_date=datetime(2025, 7, 10),
-    schedule='@daily',
+    schedule='0 3 * * *',  # KST 03:00 (새벽 3시)
     catchup=False,
     tags=['example'],
+    timezone='Asia/Seoul',
 ) as dag:
 
     # GH Archive 데이터 수집 태스크
@@ -38,6 +39,8 @@ with DAG(
         in_cluster=True,
         startup_timeout_seconds=300,
         service_account_name='airflow',
+        termination_grace_period=30,
+        reattach_on_restart=False,
     )
 
     collect_gh_archive

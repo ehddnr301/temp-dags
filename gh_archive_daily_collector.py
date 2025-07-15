@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import requests
 import json
+import gzip
+import io
 from datetime import datetime, timedelta
 from deltalake import write_deltalake
 import time
@@ -18,24 +20,36 @@ os.environ["AWS_ENDPOINT_URL"] = "http://minio:9000"
 os.environ["AWS_ALLOW_HTTP"] = "true"
 os.environ["AWS_CONDITIONAL_PUT"] = "etag"
 
+def gharchive_url_for_hour(date_str: str, hour: int) -> str:
+    """
+    주어진 날짜(date_str)와 시간(hour)에 해당하는 GH Archive URL을 반환.
+    ex) 2025-07-12, 0시 -> "http://data.gharchive.org/2025-07-12-0.json.gz"
+    """
+    return f"http://data.gharchive.org/{date_str}-{hour}.json.gz"
+
+def generate_urls_for_date(date_str: str) -> list[str]:
+    """날짜 date_str에 대한 0시부터 23시까지 24개의 URL 목록을 생성."""
+    return [gharchive_url_for_hour(date_str, h) for h in range(24)]
+
 def fetch_organization_data(date: str, organization: str) -> pd.DataFrame:
     """특정 날짜와 organization의 GH Archive 데이터 수집"""
-    base_url = "https://data.gharchive.org"
     all_events = []
     
-    for hour in range(24):
-        url = f"{base_url}/{date}-{hour}.json.gz"
+    for url in generate_urls_for_date(date):
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             
-            for line in response.text.strip().split('\n'):
-                if line:
+            # gzip 압축 해제
+            with gzip.GzipFile(fileobj=io.BytesIO(response.content)) as f:
+                for line in f:
                     try:
-                        event = json.loads(line)
+                        event = json.loads(line.decode('utf-8'))
+                        # event가 딕셔너리인지 확인
+                        if not isinstance(event, dict):
+                            continue
                         # organization 관련 이벤트만 필터링
-                        if (event.get('repo', {}).get('name', '').startswith(f"{organization}/") or
-                            event.get('org', {}).get('login') == organization):
+                        if event.get("org", {}).get("login") == organization:
                             all_events.append(event)
                     except json.JSONDecodeError:
                         continue
@@ -43,7 +57,7 @@ def fetch_organization_data(date: str, organization: str) -> pd.DataFrame:
             time.sleep(0.1)  # API 레이트 리밋 방지
             
         except requests.RequestException as e:
-            logger.error(f"❌ {date} {hour:02d}:00 데이터 수집 실패: {e}")
+            logger.error(f"❌ {url} 데이터 수집 실패: {e}")
     
     if not all_events:
         return pd.DataFrame()
