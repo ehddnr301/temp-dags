@@ -12,6 +12,7 @@ default_args = {
     'depends_on_past': False,
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
+    'timezone': 'Asia/Seoul',
 }
 
 with DAG(
@@ -21,7 +22,6 @@ with DAG(
     schedule='0 3 * * *',  # KST 03:00 (새벽 3시)
     catchup=False,
     tags=['example'],
-    timezone='Asia/Seoul',
 ) as dag:
 
     # GH Archive 데이터 수집 태스크
