@@ -123,8 +123,11 @@ def download_and_upload_to_minio(url: str, date: str, organization: str, hour: i
         bucket_name = "gh-archive-raw"
         ensure_bucket_exists(bucket_name)
         
+        # tmp 디렉토리 생성
+        os.makedirs("./tmp", exist_ok=True)
+        
         # 임시 파일명 생성
-        temp_filename = f"/tmp/{date}-{hour}.json.gz"
+        temp_filename = f"./tmp/{date}-{hour}.json.gz"
         object_name = f"{organization}/{date}/{date}-{hour}.json.gz"
         
         # wget으로 다운로드
@@ -211,6 +214,9 @@ def process_and_save_to_delta(date: str, organization: str):
     
     total_rows = 0
     success_count = 0
+    
+    # tmp 디렉토리 생성
+    os.makedirs("./tmp", exist_ok=True)
     
     # 24시간 데이터를 시간대별로 개별 처리
     for hour in range(24):
