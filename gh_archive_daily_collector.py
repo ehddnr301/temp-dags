@@ -86,9 +86,9 @@ def get_minio_client():
         from minio.error import S3Error
         
         return Minio(
-            os.getenv("MINIO_ENDPOINT", "localhost:30090"),  # MinIO 서버 주소
-            access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),  # 액세스 키
-            secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),  # 시크릿 키
+            os.getenv("AWS_ENDPOINT_URL", "localhost:30090"),  # MinIO 서버 주소
+            access_key=os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"),  # 액세스 키
+            secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),  # 시크릿 키
             secure=os.getenv("MINIO_SECURE", "false").lower() == "true"  # HTTPS 사용 여부
         )
     except ImportError:
