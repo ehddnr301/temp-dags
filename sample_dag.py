@@ -39,33 +39,15 @@ with DAG(
         reattach_on_restart=False,
     )
 
-    unzip_task = KubernetesPodOperator(
-        task_id='unzip_gh_archive',
-        name='gh-archive-unzipper',
+    process_task = KubernetesPodOperator(
+        task_id='process_gh_archive',
+        name='gh-archive-processor',
         namespace='default',
         image='ehddnr/gh-archive-collector:latest',
         image_pull_policy='Always',
         cmds=['python'],
-        arguments=['/app/gh_archive_daily_collector.py', '{{ ds }}', 'CausalInferenceLab', 'unzip'],
-        labels={'gh-archive': 'unzip'},
-        get_logs=True,
-        is_delete_operator_pod=True,
-        in_cluster=True,
-        startup_timeout_seconds=300,
-        service_account_name='airflow',
-        termination_grace_period=30,
-        reattach_on_restart=False,
-    )
-
-    save_task = KubernetesPodOperator(
-        task_id='save_gh_archive',
-        name='gh-archive-saver',
-        namespace='default',
-        image='ehddnr/gh-archive-collector:latest',
-        image_pull_policy='Always',
-        cmds=['python'],
-        arguments=['/app/gh_archive_daily_collector.py', '{{ ds }}', 'CausalInferenceLab', 'save'],
-        labels={'gh-archive': 'save'},
+        arguments=['/app/gh_archive_daily_collector.py', '{{ ds }}', 'CausalInferenceLab', 'process'],
+        labels={'gh-archive': 'process'},
         get_logs=True,
         is_delete_operator_pod=True,
         in_cluster=True,
@@ -76,4 +58,4 @@ with DAG(
     )
 
     # 태스크 의존성 설정
-    download_task >> unzip_task >> save_task
+    download_task >> process_task
