@@ -264,7 +264,6 @@ def process_and_save_to_delta(date: str, organization: str):
             logger.error(f"❌ {hour}시 데이터 처리 실패: {e}")
             if os.path.exists(temp_file):
                 os.remove(temp_file)
-        break
     
     if success_count == 0:
         logger.error("❌ 처리할 데이터가 없습니다.")
