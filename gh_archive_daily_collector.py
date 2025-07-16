@@ -5,73 +5,14 @@ import gzip
 import json
 from datetime import datetime
 
-import pyarrow as pa
-import pyarrow.parquet as pq
 import pandas as pd
 
-def find_nulltype_paths(df: pd.DataFrame) -> list[str]:
-    tbl = pa.Table.from_pandas(df, preserve_index=False)
-    bad = []
+def convert_all_columns_to_string(df: pd.DataFrame) -> pd.DataFrame:
+    """DataFrame의 모든 컬럼을 string 타입으로 변환"""
+    for col in df.columns:
+        df[col] = df[col].astype(str)
+    return df
 
-    def walk(prefix: str, typ: pa.DataType):
-        if pa.types.is_null(typ):                # list<null>, struct<…null…> 등
-            bad.append(prefix.rstrip("."))
-        elif pa.types.is_struct(typ):
-            for field in typ:                    # pa.Field
-                walk(f"{prefix}{field.name}.", field.type)
-        elif pa.types.is_list(typ) or pa.types.is_large_list(typ):
-            walk(prefix, typ.value_type)         # list 값 타입 검사
-        elif pa.types.is_map(typ):
-            walk(prefix + "key.", typ.key_type)
-            walk(prefix + "value.", typ.item_type)
-
-    for field in tbl.schema:                     # ← Schema → Field
-        walk(f"{field.name}.", field.type)
-
-    return sorted(set(bad))
-
-NULL_PATHS = [
-    "payload.forkee.language",
-    "payload.forkee.mirror_url",
-    "payload.forkee.topics",
-    "payload.pages.summary",
-    "payload.pull_request.active_lock_reason",
-    "payload.pull_request.base.repo.mirror_url",
-    "payload.pull_request.head.repo.mirror_url",
-    "payload.pull_request.milestone.closed_at",
-    "payload.pull_request.requested_teams.parent",
-]
-
-def strip_null_paths(event: dict) -> dict:
-    """
-    ① NULL_PATHS 에 명시된 키 삭제  
-    ② dict/list 가 '텅 빈' 상태로 남으면 상위에서도 삭제
-    """
-    # 1) 지정된 경로 키 제거
-    for path in NULL_PATHS:
-        cur = event
-        keys = path.split(".")
-        for k in keys[:-1]:
-            cur = cur.get(k)
-            if not isinstance(cur, dict):
-                break
-        else:
-            cur.pop(keys[-1], None)
-
-    # 2) 재귀적으로 빈 컨테이너(dict/list) 제거
-    def prune(obj):
-        if isinstance(obj, dict):
-            for k in list(obj.keys()):
-                if prune(obj[k]):        # 하위가 모두 비면 삭제
-                    obj.pop(k, None)
-            return len(obj) == 0
-        if isinstance(obj, list):
-            obj[:] = [v for v in obj if not prune(v)]
-            return len(obj) == 0
-        # 스칼라(null 이 아닌 값) → False
-        return obj is None
-
-    return event
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -237,7 +178,6 @@ def process_and_save_to_delta(date: str, organization: str):
                         data = json.loads(line)
                         if not data.get("org"):
                             continue
-                        data = strip_null_paths(data)
                         hour_data.append(data)
             
             # 임시 파일 삭제
@@ -246,19 +186,22 @@ def process_and_save_to_delta(date: str, organization: str):
             if hour_data:
                 # 현재 시간대 데이터를 DataFrame으로 변환
                 df_hour = pd.DataFrame(hour_data)
-
-                print(df_hour)
-                print(df_hour.columns)
-                print(df_hour.columns[df_hour.isna().any()])
-
-                bad_fields = find_nulltype_paths(df_hour)
-                print(bad_fields)
+                
+                # 모든 컬럼을 string 타입으로 변환
+                df_hour = convert_all_columns_to_string(df_hour)
                 
                 # 첫 번째 시간대는 새로 생성, 이후는 append 모드로 추가
                 mode = "overwrite" if hour == 0 else "append"
-                
+                print(df_hour.columns)
                 # Delta Lake에 저장
                 write_deltalake(delta_path, df_hour, mode=mode, storage_options=storage_options)
+                
+                # Delta Lake 저장 성공 후 MinIO raw 버킷에서 원본 파일 삭제
+                try:
+                    client.remove_object(bucket_name, object_name)
+                    logger.info(f"🗑️ 원본 파일 삭제 완료: {bucket_name}/{object_name}")
+                except Exception as e:
+                    logger.warning(f"⚠️ 원본 파일 삭제 실패: {e}")
                 
                 total_rows += len(df_hour)
                 success_count += 1
