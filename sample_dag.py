@@ -15,7 +15,7 @@ default_args = {
 with DAG(
     dag_id='gh_archive_separated_tasks',
     default_args=default_args,
-    start_date=pendulum.datetime(2025, 7, 10, tz='Asia/Seoul'),
+    start_date=pendulum.datetime(2025, 1, 1, tz='Asia/Seoul'),
     schedule='0 3 * * *',  # 매일 KST 03:00 실행
     catchup=False,
     tags=['gh-archive'],
