@@ -84,6 +84,11 @@ def get_minio_client():
     try:
         from minio import Minio
         from minio.error import S3Error
+
+        print(os.getenv("AWS_ENDPOINT_URL", ""))
+        print(os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"))
+        print(os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"))
+        print(os.getenv("MINIO_SECURE", "false").lower() == "true")
         
         return Minio(
             os.getenv("AWS_ENDPOINT_URL", "localhost:30090"),  # MinIO 서버 주소
@@ -197,14 +202,14 @@ def process_and_save_to_delta(date: str, organization: str):
     ensure_bucket_exists(delta_bucket_name)
     
     # Delta Lake 경로 설정 (MinIO S3 호환)
-    minio_endpoint = os.getenv("MINIO_ENDPOINT", "localhost:30090")
+    minio_endpoint = os.getenv("AWS_ENDPOINT_URL", "localhost:30090")
     delta_path = f"s3://{delta_bucket_name}/{organization}/{date}"
     
     # S3 호환 설정
     storage_options = {
         "AWS_ENDPOINT_URL": f"http://{minio_endpoint}",
-        "AWS_ACCESS_KEY_ID": os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
-        "AWS_SECRET_ACCESS_KEY": os.getenv("MINIO_SECRET_KEY", "minioadmin"),
+        "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"),
+        "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
         "AWS_REGION": "us-east-1",  # MinIO는 기본적으로 us-east-1 사용
         "AWS_ALLOW_HTTP": "true",
         "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
