@@ -9,7 +9,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pandas as pd
 
-
 def find_nulltype_paths(df: pd.DataFrame) -> list[str]:
     tbl = pa.Table.from_pandas(df, preserve_index=False)
     bad = []
@@ -85,13 +84,8 @@ def get_minio_client():
         from minio import Minio
         from minio.error import S3Error
 
-        print(os.getenv("AWS_ENDPOINT_URL", ""))
-        print(os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"))
-        print(os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"))
-        print(os.getenv("MINIO_SECURE", "false").lower() == "true")
-        
         return Minio(
-            os.getenv("AWS_ENDPOINT_URL", "localhost:30090"),  # MinIO 서버 주소
+            os.getenv("AWS_ENDPOINT_URL", "minio:9000"),  # MinIO 서버 주소
             access_key=os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"),  # 액세스 키
             secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),  # 시크릿 키
             secure=os.getenv("MINIO_SECURE", "false").lower() == "true"  # HTTPS 사용 여부
@@ -202,7 +196,7 @@ def process_and_save_to_delta(date: str, organization: str):
     ensure_bucket_exists(delta_bucket_name)
     
     # Delta Lake 경로 설정 (MinIO S3 호환)
-    minio_endpoint = os.getenv("AWS_ENDPOINT_URL", "localhost:30090")
+    minio_endpoint = os.getenv("AWS_ENDPOINT_URL", "minio:9000")
     delta_path = f"s3://{delta_bucket_name}/{organization}/{date}"
     
     # S3 호환 설정
