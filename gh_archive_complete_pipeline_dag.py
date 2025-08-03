@@ -36,7 +36,7 @@ with DAG(
     dag_id='gh_archive_complete_pipeline',
     default_args=default_args,
     start_date=pendulum.datetime(2025, 1, 1, tz='Asia/Seoul'),
-    schedule='0 3 * * *',  # 매일 KST 03:00 실행
+    schedule='0 2 * * *',  # 매일 KST 03:00 실행
     catchup=False,
     tags=['gh-archive'],
     description='gh-archive-complete-pipeline dag',
