@@ -567,12 +567,6 @@ def optimize_schema_for_organizations(date: str, organization: str, target_login
 def _process_single_file(file_path: str, storage_options: dict, target_logins: list, table_path: str) -> pd.DataFrame:
     """단일 파일을 처리하는 함수 (기존 로직과 동일)"""
     try:
-        # S3 경로에서 bucket과 key 분리
-        if file_path.startswith('s3://'):
-            s3_path = file_path.replace('s3://', '')
-        else:
-            s3_path = file_path
-            
         # Parquet 파일 직접 읽기
         s3_fs = pyarrow.fs.S3FileSystem(
             endpoint_override="minio:9000",
@@ -581,13 +575,22 @@ def _process_single_file(file_path: str, storage_options: dict, target_logins: l
             scheme="http"
         )
         
-        # 전체 파일 경로 구성
+        # 전체 파일 경로 구성 (table_path + file_path)
         if not table_path.endswith('/'):
             full_s3_path = f"{table_path}/{file_path}"
         else:
             full_s3_path = f"{table_path}{file_path}"
             
-        table = pq.read_table(s3_path, filesystem=s3_fs)
+        # s3:// 접두사 제거하여 S3 key 만 추출
+        if full_s3_path.startswith('s3://'):
+            s3_key = full_s3_path.replace('s3://', '')
+        else:
+            s3_key = full_s3_path
+            
+        logger.info(f"  처리할 파일: {full_s3_path}")
+        logger.info(f"  S3 key: {s3_key}")
+            
+        table = pq.read_table(s3_key, filesystem=s3_fs)
         pdf = table.to_pandas()
         
         logger.info(f"  파일 처리 중: {file_path} ({len(pdf)} 행)")
