@@ -4,6 +4,13 @@ import logging
 import gzip
 import json
 from datetime import datetime
+import ast
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
+import pyarrow.fs
+from deltalake import DeltaTable, write_deltalake
 
 import pandas as pd
 
@@ -12,6 +19,29 @@ def _convert_all_columns_to_string(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
         df[col] = df[col].astype(str)
     return df
+
+def _filter_by_organization(df: pd.DataFrame, target_logins: list) -> pd.DataFrame:
+    """조직 필터링 함수"""
+    if 'org' not in df.columns or len(df) == 0:
+        return df
+    
+    def safe_dict_parse(x):
+        if pd.isna(x) or x is None:
+            return None
+        if isinstance(x, str):
+            try:
+                return ast.literal_eval(x)
+            except (ValueError, SyntaxError):
+                return None
+        return x
+    
+    df['org_parsed'] = df['org'].apply(safe_dict_parse)
+    filtered_df = df[df['org_parsed'].apply(lambda x: x and isinstance(x, dict) and x.get('login') in target_logins)]
+    
+    if len(filtered_df) > 0:
+        filtered_df = filtered_df.drop('org_parsed', axis=1)
+    
+    return filtered_df
 
 
 # 로깅 설정
@@ -176,6 +206,7 @@ def process_and_save_to_delta(date: str, organization: str):
                 for line in f:
                     if line.strip():
                         data = json.loads(line)
+                        # 기본 필터링: org가 있는 데이터만 처리
                         if not data.get("org"):
                             continue
                         hour_data.append(data)
@@ -220,13 +251,59 @@ def process_and_save_to_delta(date: str, organization: str):
     logger.info(f"✅ Delta Lake 테이블 저장 완료: {delta_path} (총 {total_rows} 행, {success_count}개 시간대)")
     return True
 
+def filter_delta_table_by_organization(date: str, organization: str, target_logins: list):
+    """Delta Lake 테이블에서 조직별로 데이터 필터링"""
+    try:
+        # MinIO 설정
+        minio_endpoint = os.getenv("AWS_ENDPOINT_URL", "minio:9000")
+        storage_options = {
+            "AWS_ENDPOINT_URL": f"http://{minio_endpoint}",
+            "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"),
+            "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
+            "AWS_REGION": "us-east-1",
+            "AWS_ALLOW_HTTP": "true",
+            "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
+        }
+        
+        # 원본 및 필터링된 테이블 경로
+        source_path = f"s3://gh-archive-delta/{organization}/{date}"
+        filtered_path = f"s3://gh-archive-delta/filtered_{organization}/{date}"
+        
+        logger.info(f"🔍 필터링 시작: {source_path} -> {filtered_path}")
+        
+        # Delta Lake 테이블 읽기
+        dt = DeltaTable(source_path, storage_options=storage_options)
+        df = dt.to_pandas()
+        
+        logger.info(f"📊 원본 데이터: {len(df)} 행")
+        
+        # 조직별 필터링
+        filtered_df = _filter_by_organization(df, target_logins)
+        
+        if len(filtered_df) > 0:
+            # 모든 컬럼을 string 타입으로 변환
+            filtered_df = _convert_all_columns_to_string(filtered_df)
+            
+            # 필터링된 데이터 저장
+            write_deltalake(filtered_path, filtered_df, mode="overwrite", storage_options=storage_options)
+            logger.info(f"✅ 필터링 완료: {len(filtered_df)} 행 저장됨")
+            return True
+        else:
+            logger.warning("⚠️ 필터링된 결과가 없습니다.")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ 필터링 실패: {e}")
+        return False
+
 def main():
     """메인 실행 함수"""
     import sys
     
-    if len(sys.argv) != 4:
-        print("사용법: python gh_archive_daily_collector.py <YYYY-MM-DD> <organization> <type>")
-        print("  type: 'download' (gz 파일 다운로드) 또는 'process' (압축 해제 후 delta table에 저장)")
+    if len(sys.argv) < 4:
+        print("사용법: python gh_archive_daily_collector.py <YYYY-MM-DD> <organization> <type> [target_logins]")
+        print("  type: 'download' (gz 파일 다운로드), 'process' (압축 해제 후 delta table에 저장), 'filter' (조직별 필터링)")
+        print("  target_logins (filter용): 쉼표로 구분된 조직명 (예: CausalInferenceLab,Pseudo-Lab,apache)")
         sys.exit(1)
     
     date = sys.argv[1]
@@ -234,8 +311,8 @@ def main():
     process_type = sys.argv[3]
     
     # 타입 검증
-    if process_type not in ['download', 'process']:
-        logger.error(f"❌ 잘못된 타입: {process_type}. 'download' 또는 'process'를 사용하세요.")
+    if process_type not in ['download', 'process', 'filter']:
+        logger.error(f"❌ 잘못된 타입: {process_type}. 'download', 'process' 또는 'filter'를 사용하세요.")
         sys.exit(1)
     
     try:
@@ -256,6 +333,19 @@ def main():
             logger.info(f"✅ {date} 데이터 처리 완료")
         else:
             logger.error(f"❌ {date} 데이터 처리 실패")
+            sys.exit(1)
+    elif process_type == 'filter':
+        if len(sys.argv) < 5:
+            logger.error("❌ filter 타입에는 target_logins 파라미터가 필요합니다.")
+            sys.exit(1)
+        
+        target_logins = sys.argv[4].split(',')
+        logger.info(f"🔍 {date} 데이터 필터링 시작 - 대상 조직: {target_logins}")
+        success = filter_delta_table_by_organization(date, organization, target_logins)
+        if success:
+            logger.info(f"✅ {date} 데이터 필터링 완료")
+        else:
+            logger.error(f"❌ {date} 데이터 필터링 실패")
             sys.exit(1)
 
 if __name__ == "__main__":
