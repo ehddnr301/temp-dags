@@ -467,6 +467,7 @@ def split_filtered_data_by_organization(date: str, organization: str, target_log
                 logger.info(f"✅ {login}: {len(org_df_clean)}행 저장 완료")
                 success_count += 1
             else:
+                success_count += 1
                 logger.warning(f"⚠️ {login}: 데이터 없음")
         
         logger.info(f"✅ 조직별 분리 완료: {success_count}/{len(target_logins)}개 조직")
