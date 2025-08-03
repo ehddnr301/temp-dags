@@ -437,8 +437,9 @@ def split_filtered_data_by_organization(date: str, organization: str, target_log
                 except (ValueError, SyntaxError):
                     return None
             return x
-        
+        logger.info(f"컬럼명1: {df.columns}")
         df['org_parsed'] = df['org'].apply(safe_dict_parse)
+        logger.info(f"컬럼명2: {df.columns}")
         
         # 각 target_login별로 분리 저장
         success_count = 0
