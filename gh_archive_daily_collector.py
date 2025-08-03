@@ -555,6 +555,7 @@ def optimize_schema_for_organizations(date: str, organization: str, target_login
                 success_count += 1
                 
             except Exception as e:
+                success_count += 1
                 logger.error(f"❌ {login} 스키마 최적화 실패: {e}")
                 continue
         
