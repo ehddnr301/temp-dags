@@ -39,7 +39,7 @@ with DAG(
     schedule='0 3 * * *',  # 매일 KST 03:00 실행
     catchup=False,
     tags=['gh-archive'],
-    description='Complete GitHub Archive data pipeline with all processing stages',
+    description='gh-archive-complete-pipeline dag',
 ) as dag:
 
     # 1. 데이터 다운로드 (단일 태스크)
