@@ -663,6 +663,7 @@ def filter_delta_table_by_organization(date: str, organization: str, target_logi
         }
         
         new_table_path = f"s3://gh-archive-delta/dl_org_filtered_gh_archive/{date}/"
+        logger.info(f"new_table_path: {new_table_path}")
         all_filtered_data = []
         
         # 각 파일을 개별적으로 처리
