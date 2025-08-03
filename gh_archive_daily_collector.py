@@ -416,8 +416,8 @@ def split_filtered_data_by_organization(date: str, organization: str, target_log
             "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
         }
         
-        # 필터링된 데이터 경로
-        source_path = f"s3://gh-archive-delta/filtered_{organization}/{date}"
+        # 필터링된 데이터 경로 (기존 로직과 동일)
+        source_path = f"s3://gh-archive-delta/dl_org_filtered_gh_archive/{date}"
         
         logger.info(f"🔄 조직별 분리 시작: {source_path}")
         
@@ -450,8 +450,8 @@ def split_filtered_data_by_organization(date: str, organization: str, target_log
                 org_df_clean = org_df.drop('org_parsed', axis=1)
                 org_df_clean = _convert_all_columns_to_string(org_df_clean)
                 
-                # 조직별 저장 경로
-                output_path = f"s3://gh-archive-delta/org_{login}/{date}"
+                # 조직별 저장 경로 (기존 로직과 동일)
+                output_path = f"s3://gh-archive-delta/dl_org_{login}_gh_archive/{date}"
                 
                 # Delta Lake에 저장
                 write_deltalake(output_path, org_df_clean, mode="overwrite", storage_options=storage_options)
@@ -486,8 +486,8 @@ def optimize_schema_for_organizations(date: str, organization: str, target_login
         success_count = 0
         for login in target_logins:
             try:
-                # 소스 경로 (분리된 조직 데이터)
-                source_path = f"s3://gh-archive-delta/org_{login}/{date}"
+                # 소스 경로 (분리된 조직 데이터, 기존 로직과 동일)
+                source_path = f"s3://gh-archive-delta/dl_org_{login}_gh_archive/{date}"
                 logger.info(f"📂 읽는 중: {source_path}")
                 
                 # Arrow 테이블로 직접 읽기
@@ -505,9 +505,9 @@ def optimize_schema_for_organizations(date: str, organization: str, target_login
                 base_date_col = pa.array([date] * len(arrow_table_converted), type=pa.string())
                 arrow_table_with_date = arrow_table_converted.append_column('base_date', base_date_col)
                 
-                # 최적화된 저장 경로 (snake_case 처리)
+                # 최적화된 저장 경로 (기존 로직과 동일, snake_case 처리)
                 login_snake = _to_snake_case(login)
-                output_path = f"s3://gh-archive-delta/optimized_org_{login_snake}/"
+                output_path = f"s3://gh-archive-delta/dl_org_{login_snake}/"
                 
                 # 테이블 존재 여부 확인
                 try:
@@ -555,45 +555,126 @@ def optimize_schema_for_organizations(date: str, organization: str, target_login
         logger.error(f"❌ 스키마 최적화 실패: {e}")
         return False
 
-def filter_delta_table_by_organization(date: str, organization: str, target_logins: list):
-    """Delta Lake 테이블에서 조직별로 데이터 필터링"""
+def _process_single_file(file_path: str, storage_options: dict, target_logins: list, table_path: str) -> pd.DataFrame:
+    """단일 파일을 처리하는 함수 (기존 로직과 동일)"""
     try:
-        # MinIO 설정
-        minio_endpoint = os.getenv("AWS_ENDPOINT_URL", "minio:9000")
+        # S3 경로에서 bucket과 key 분리
+        if file_path.startswith('s3://'):
+            s3_path = file_path.replace('s3://', '')
+        else:
+            s3_path = file_path
+            
+        # Parquet 파일 직접 읽기
+        s3_fs = pyarrow.fs.S3FileSystem(
+            endpoint_override="localhost:30090",
+            access_key="minioadmin",
+            secret_key="minioadmin",
+            scheme="http"
+        )
+        
+        # 전체 파일 경로 구성
+        if not table_path.endswith('/'):
+            full_s3_path = f"{table_path}/{file_path}"
+        else:
+            full_s3_path = f"{table_path}{file_path}"
+            
+        table = pq.read_table(s3_path, filesystem=s3_fs)
+        pdf = table.to_pandas()
+        
+        logger.info(f"  파일 처리 중: {file_path} ({len(pdf)} 행)")
+        
+        # org 컬럼 처리
+        if 'org' in pdf.columns and len(pdf) > 0:
+            def safe_dict_parse(x):
+                if pd.isna(x) or x is None:
+                    return None
+                if isinstance(x, str):
+                    try:
+                        return ast.literal_eval(x)
+                    except (ValueError, SyntaxError):
+                        return None
+                return x
+            
+            pdf['org_parsed'] = pdf['org'].apply(safe_dict_parse)
+            filtered_pdf = pdf[pdf['org_parsed'].apply(lambda x: x and isinstance(x, dict) and x.get('login') in target_logins)]
+            
+            if len(filtered_pdf) > 0:
+                filtered_pdf = filtered_pdf.drop('org_parsed', axis=1)
+                # 모든 컬럼을 string 타입으로 변환
+                for col in filtered_pdf.columns:
+                    filtered_pdf[col] = filtered_pdf[col].astype(str)
+                return filtered_pdf
+                    
+    except Exception as e:
+        logger.error(f"  ❌ 파일 처리 실패 {file_path}")
+        logger.error(f"     에러 타입: {type(e).__name__}")
+        logger.error(f"     에러 메시지: {str(e)}")
+        import traceback
+        logger.error(f"     전체 트레이스:\n{traceback.format_exc()}")
+    
+    return None
+
+def filter_delta_table_by_organization(date: str, organization: str, target_logins: list):
+    """GitHub Archive 데이터를 파일별로 처리하는 함수 (기존 로직과 동일)"""
+    try:
+        # MinIO (S3) 환경 변수 설정
+        os.environ["AWS_ACCESS_KEY_ID"] = "minioadmin"
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "minioadmin"
+        os.environ["AWS_ENDPOINT_URL"] = "http://localhost:30090"
+        os.environ["AWS_ALLOW_HTTP"] = "true"
+        os.environ["AWS_CONDITIONAL_PUT"] = "etag"
+
+        table_path = f"s3://gh-archive-delta/{organization}/{date}/"
+        
+        logger.info(f"처리 시작: {date}")
+        logger.info(f"테이블 경로: {table_path}")
+
+        # Delta Lake 테이블에서 파일 목록 가져오기
+        dt = DeltaTable(table_path)
+        files = dt.files()
+        
+        logger.info(f"총 {len(files)}개 파일 발견")
+        logger.info(f"첫 번째 파일 경로 샘플: {files[0] if files else '없음'}")
+        
         storage_options = {
-            "AWS_ENDPOINT_URL": f"http://{minio_endpoint}",
-            "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"),
-            "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
+            "AWS_ENDPOINT_URL": "http://localhost:30090",
+            "AWS_ACCESS_KEY_ID": "minioadmin",
+            "AWS_SECRET_ACCESS_KEY": "minioadmin",
             "AWS_REGION": "us-east-1",
             "AWS_ALLOW_HTTP": "true",
             "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
         }
         
-        # 원본 및 필터링된 테이블 경로
-        source_path = f"s3://gh-archive-delta/{organization}/{date}"
-        filtered_path = f"s3://gh-archive-delta/filtered_{organization}/{date}"
+        new_table_path = f"s3://gh-archive-delta/dl_org_filtered_gh_archive/{date}/"
+        all_filtered_data = []
         
-        logger.info(f"🔍 필터링 시작: {source_path} -> {filtered_path}")
-        
-        # Delta Lake 테이블 읽기
-        dt = DeltaTable(source_path, storage_options=storage_options)
-        df = dt.to_pandas()
-        
-        logger.info(f"📊 원본 데이터: {len(df)} 행")
-        
-        # 조직별 필터링
-        filtered_df = _filter_by_organization(df, target_logins)
-        
-        if len(filtered_df) > 0:
-            # 모든 컬럼을 string 타입으로 변환
-            filtered_df = _convert_all_columns_to_string(filtered_df)
+        # 각 파일을 개별적으로 처리
+        for i, file_path in enumerate(files, 1):
+            logger.info(f"[{i}/{len(files)}] 파일 처리 중...")
+            logger.info(f"  원본 파일 경로: {file_path}")
             
-            # 필터링된 데이터 저장
-            write_deltalake(filtered_path, filtered_df, mode="overwrite", storage_options=storage_options)
-            logger.info(f"✅ 필터링 완료: {len(filtered_df)} 행 저장됨")
-            return True
+            filtered_data = _process_single_file(file_path, storage_options, target_logins, table_path)
+            
+            if filtered_data is not None and len(filtered_data) > 0:
+                all_filtered_data.append(filtered_data)
+                logger.info(f"  ✅ {len(filtered_data)}개 행 필터링됨")
+        
+        # 모든 필터링된 데이터 결합
+        if all_filtered_data:
+            final_pdf = pd.concat(all_filtered_data, ignore_index=True)
+            logger.info(f"\n=== 전체 필터링 결과: {len(final_pdf)} 행 ===\n")
+            
+            try:
+                write_deltalake(new_table_path, final_pdf, mode="overwrite", storage_options=storage_options)
+                logger.info(f"✅ 필터링된 데이터 저장 완료: {new_table_path}")
+                logger.info(f"   저장된 행 수: {len(final_pdf)}")
+                logger.info(f"   저장된 컬럼 수: {len(final_pdf.columns)}")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Delta Lake 저장 실패: {e}")
+                return False
         else:
-            logger.warning("⚠️ 필터링된 결과가 없습니다.")
+            logger.warning("필터링된 결과가 없습니다.")
             return False
             
     except Exception as e:
