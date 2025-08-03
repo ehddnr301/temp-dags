@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pandas as pd
 
-def convert_all_columns_to_string(df: pd.DataFrame) -> pd.DataFrame:
+def _convert_all_columns_to_string(df: pd.DataFrame) -> pd.DataFrame:
     """DataFrame의 모든 컬럼을 string 타입으로 변환"""
     for col in df.columns:
         df[col] = df[col].astype(str)
@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # MinIO 클라이언트 설정
-def get_minio_client():
+def _get_minio_client():
     """MinIO 클라이언트 생성"""
     try:
         from minio import Minio
@@ -35,11 +35,11 @@ def get_minio_client():
         logger.error("❌ MinIO 클라이언트가 설치되지 않았습니다. 'pip install minio'를 실행하세요.")
         raise
 
-def ensure_bucket_exists(bucket_name: str):
+def _ensure_bucket_exists(bucket_name: str):
     """버킷이 존재하는지 확인하고 없으면 생성"""
     try:
         from minio.error import S3Error
-        client = get_minio_client()
+        client = _get_minio_client()
         if not client.bucket_exists(bucket_name):
             client.make_bucket(bucket_name)
             logger.info(f"📦 버킷 생성 완료: {bucket_name}")
@@ -47,22 +47,22 @@ def ensure_bucket_exists(bucket_name: str):
         logger.error(f"❌ 버킷 생성 실패: {e}")
         raise
 
-def gharchive_url_for_hour(date_str: str, hour: int) -> str:
+def _gharchive_url_for_hour(date_str: str, hour: int) -> str:
     """
     주어진 날짜(date_str)와 시간(hour)에 해당하는 GH Archive URL을 반환.
     ex) 2025-07-12, 0시 -> "http://data.gharchive.org/2025-07-12-0.json.gz"
     """
     return f"http://data.gharchive.org/{date_str}-{hour}.json.gz"
 
-def generate_urls_for_date(date_str: str) -> list[str]:
+def _generate_urls_for_date(date_str: str) -> list[str]:
     """날짜 date_str에 대한 0시부터 23시까지 24개의 URL 목록을 생성."""
-    return [gharchive_url_for_hour(date_str, h) for h in range(24)]
+    return [_gharchive_url_for_hour(date_str, h) for h in range(24)]
 
-def download_and_upload_to_minio(url: str, date: str, organization: str, hour: int):
+def _download_and_upload_to_minio(url: str, date: str, organization: str, hour: int):
     """wget으로 데이터를 다운로드하고 바로 MinIO에 업로드"""
     try:
         bucket_name = "gh-archive-raw"
-        ensure_bucket_exists(bucket_name)
+        _ensure_bucket_exists(bucket_name)
         
         # tmp 디렉토리 생성
         os.makedirs("./tmp", exist_ok=True)
@@ -88,7 +88,7 @@ def download_and_upload_to_minio(url: str, date: str, organization: str, hour: i
             return False
         
         # MinIO에 업로드
-        client = get_minio_client()
+        client = _get_minio_client()
         with open(temp_filename, 'rb') as file_data:
             client.put_object(
                 bucket_name,
@@ -113,11 +113,11 @@ def download_and_upload_to_minio(url: str, date: str, organization: str, hour: i
 
 def download_all_hours(date: str, organization: str):
     """하루치 모든 시간대 데이터를 다운로드하고 MinIO에 업로드"""
-    urls = generate_urls_for_date(date)
+    urls = _generate_urls_for_date(date)
     success_count = 0
     
     for hour, url in enumerate(urls):
-        if download_and_upload_to_minio(url, date, organization, hour):
+        if _download_and_upload_to_minio(url, date, organization, hour):
             success_count += 1
     
     logger.info(f"📊 {date} - 총 {len(urls)}개 중 {success_count}개 성공")
@@ -134,10 +134,10 @@ def process_and_save_to_delta(date: str, organization: str):
     
     bucket_name = "gh-archive-raw"
     delta_bucket_name = "gh-archive-delta"
-    client = get_minio_client()
+    client = _get_minio_client()
     
     # Delta Lake 버킷 생성
-    ensure_bucket_exists(delta_bucket_name)
+    _ensure_bucket_exists(delta_bucket_name)
     
     # Delta Lake 경로 설정 (MinIO S3 호환)
     minio_endpoint = os.getenv("AWS_ENDPOINT_URL", "minio:9000")
@@ -188,7 +188,7 @@ def process_and_save_to_delta(date: str, organization: str):
                 df_hour = pd.DataFrame(hour_data)
                 
                 # 모든 컬럼을 string 타입으로 변환
-                df_hour = convert_all_columns_to_string(df_hour)
+                df_hour = _convert_all_columns_to_string(df_hour)
                 
                 # 첫 번째 시간대는 새로 생성, 이후는 append 모드로 추가
                 mode = "overwrite" if hour == 0 else "append"
