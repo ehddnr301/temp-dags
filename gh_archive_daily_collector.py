@@ -446,8 +446,16 @@ def split_filtered_data_by_organization(date: str, organization: str, target_log
             org_df = df[df['org_parsed'].apply(lambda x: x and isinstance(x, dict) and x.get('login') == login)]
             
             if len(org_df) > 0:
-                # org_parsed 컬럼 제거 및 string 변환
+                # org_parsed 컬럼 제거
                 org_df_clean = org_df.drop('org_parsed', axis=1)
+                
+                # __index_level 컬럼들 제거 (스키마 중복 오류 방지)
+                index_cols = [col for col in org_df_clean.columns if col.startswith('__index_level')]
+                if index_cols:
+                    org_df_clean = org_df_clean.drop(columns=index_cols)
+                    logger.info(f"  인덱스 컬럼 제거: {index_cols}")
+                
+                # string 변환
                 org_df_clean = _convert_all_columns_to_string(org_df_clean)
                 
                 # 조직별 저장 경로 (기존 로직과 동일)
@@ -599,7 +607,15 @@ def _process_single_file(file_path: str, storage_options: dict, target_logins: l
             filtered_pdf = pdf[pdf['org_parsed'].apply(lambda x: x and isinstance(x, dict) and x.get('login') in target_logins)]
             
             if len(filtered_pdf) > 0:
+                # org_parsed 컬럼 제거
                 filtered_pdf = filtered_pdf.drop('org_parsed', axis=1)
+                
+                # __index_level 컬럼들 제거 (스키마 중복 오류 방지)
+                index_cols = [col for col in filtered_pdf.columns if col.startswith('__index_level')]
+                if index_cols:
+                    filtered_pdf = filtered_pdf.drop(columns=index_cols)
+                    logger.info(f"  인덱스 컬럼 제거: {index_cols}")
+                
                 # 모든 컬럼을 string 타입으로 변환
                 for col in filtered_pdf.columns:
                     filtered_pdf[col] = filtered_pdf[col].astype(str)
