@@ -575,7 +575,7 @@ def _process_single_file(file_path: str, storage_options: dict, target_logins: l
             
         # Parquet 파일 직접 읽기
         s3_fs = pyarrow.fs.S3FileSystem(
-            endpoint_override="localhost:30090",
+            endpoint_override="minio:9000",
             access_key="minioadmin",
             secret_key="minioadmin",
             scheme="http"
@@ -637,7 +637,7 @@ def filter_delta_table_by_organization(date: str, organization: str, target_logi
         # MinIO (S3) 환경 변수 설정
         os.environ["AWS_ACCESS_KEY_ID"] = "minioadmin"
         os.environ["AWS_SECRET_ACCESS_KEY"] = "minioadmin"
-        os.environ["AWS_ENDPOINT_URL"] = "http://localhost:30090"
+        os.environ["AWS_ENDPOINT_URL"] = "http://minio:9000"
         os.environ["AWS_ALLOW_HTTP"] = "true"
         os.environ["AWS_CONDITIONAL_PUT"] = "etag"
 
@@ -654,7 +654,7 @@ def filter_delta_table_by_organization(date: str, organization: str, target_logi
         logger.info(f"첫 번째 파일 경로 샘플: {files[0] if files else '없음'}")
         
         storage_options = {
-            "AWS_ENDPOINT_URL": "http://localhost:30090",
+            "AWS_ENDPOINT_URL": "http://minio:9000",
             "AWS_ACCESS_KEY_ID": "minioadmin",
             "AWS_SECRET_ACCESS_KEY": "minioadmin",
             "AWS_REGION": "us-east-1",
