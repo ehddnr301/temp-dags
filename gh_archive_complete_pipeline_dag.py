@@ -30,6 +30,22 @@ COMMON_K8S_CONFIG = {
     'service_account_name': 'airflow',
     'termination_grace_period': 30,
     'reattach_on_restart': False,
+    'affinity': {
+        'nodeAffinity': {
+            'requiredDuringSchedulingIgnoredDuringExecution': {
+                'nodeSelectorTerms': [
+                    {
+                        'matchExpressions': [
+                            {
+                                'key': 'node-role.kubernetes.io/worker',
+                                'operator': 'Exists'
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    },
 }
 
 with DAG(
