@@ -331,7 +331,7 @@ def process_and_save_to_delta(date: str, organization: str):
         "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
         "AWS_REGION": "us-east-1",  # MinIO는 기본적으로 us-east-1 사용
         "AWS_ALLOW_HTTP": "true",
-        "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
+        "conditional_put": "etag",
     }
     
     total_rows = 0
@@ -413,7 +413,7 @@ def split_filtered_data_by_organization(date: str, organization: str, target_log
             "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
             "AWS_REGION": "us-east-1",
             "AWS_ALLOW_HTTP": "true",
-            "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
+            "conditional_put": "etag",
         }
         
         # 필터링된 데이터 경로 (기존 로직과 동일)
@@ -488,7 +488,7 @@ def optimize_schema_for_organizations(date: str, organization: str, target_login
             "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
             "AWS_REGION": "us-east-1",
             "AWS_ALLOW_HTTP": "true",
-            "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
+            "conditional_put": "etag",
         }
         
         logger.info(f"⚡ {date} 스키마 최적화 시작 - 대상 조직: {target_logins}")
@@ -664,7 +664,7 @@ def filter_delta_table_by_organization(date: str, organization: str, target_logi
             "AWS_SECRET_ACCESS_KEY": "minioadmin",
             "AWS_REGION": "us-east-1",
             "AWS_ALLOW_HTTP": "true",
-            "AWS_S3_ALLOW_UNSAFE_RENAME": "true"
+            "conditional_put": "etag",
         }
         
         new_table_path = f"s3://gh-archive-delta/dl_org_filtered_gh_archive/{date}/"
