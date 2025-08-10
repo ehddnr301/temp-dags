@@ -14,7 +14,7 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
     'timezone': 'Asia/Seoul',
-    'max_active_runs': 1,
+    'max_active_runs': 3,
 }
 
 # 공통 KubernetesPodOperator 설정
