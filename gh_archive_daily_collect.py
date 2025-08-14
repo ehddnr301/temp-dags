@@ -159,10 +159,23 @@ def process_and_filter_to_delta(date: str) -> bool:
         table_name = "gh_archive_filtered"
         delta_path = get_delta_table_path(delta_bucket, table_name)
         
-        # Process 24-hour data
-        all_data = []
+        # Prepare for hour-by-hour processing and writing
         os.makedirs("./tmp", exist_ok=True)
         
+        # Determine if destination table exists upfront
+        try:
+            DeltaTable(delta_path, storage_options=storage_options)
+            table_exists = True
+            logger.info("📋 Existing table found; will append data")
+        except Exception:
+            table_exists = False
+            logger.info("📋 Table does not exist; will create on first write")
+        
+        wrote_any = False
+        total_saved = 0
+        partition_counts = {}
+        
+        # Process each hour independently -> write -> delete raw
         for hour in range(24):
             raw_object = f"raw_data/{date}/{date}-{hour}.json.gz"
             temp_file = f"./tmp/{date}-{hour}.json.gz"
@@ -171,111 +184,107 @@ def process_and_filter_to_delta(date: str) -> bool:
                 # Download from MinIO
                 client.fget_object(BUCKETS['raw'], raw_object, temp_file)
                 
-                # Process gz file
+                # Parse gz file
                 hour_events = []
                 with gzip.open(temp_file, 'rt', encoding='utf-8') as f:
                     for line in f:
                         if line.strip():
                             try:
                                 event = json.loads(line)
-                                # Quick filter: only events with org field
                                 if event.get("org"):
                                     hour_events.append(event)
                             except json.JSONDecodeError:
-                                continue  # Skip malformed JSON
+                                continue
                 
-                if hour_events:
-                    all_data.extend(hour_events)
-                    logger.info(f"✅ Processed hour {hour}: {len(hour_events)} events")
+                if not hour_events:
+                    logger.info(f"⚠️ Hour {hour}: no events with org field")
+                    continue
                 
-                # Cleanup temp file
-                os.remove(temp_file)
+                # Per-hour DataFrame
+                df_hour = pd.DataFrame(hour_events)
                 
-                # Remove processed raw file to save space
+                # Filter by target organizations
+                df_filtered = filter_by_organizations(df_hour, TARGET_ORGANIZATIONS)
+                if len(df_filtered) == 0:
+                    logger.info(f"⚠️ Hour {hour}: no events after org filtering")
+                    continue
+                
+                # Add timezone columns
+                df_with_tz = add_timezone_columns(df_filtered)
+                
+                # Add and clean organization for partitioning
+                df_with_tz['organization'] = df_with_tz['org'].apply(extract_organization_name)
+                df_with_tz['organization'] = df_with_tz['organization'].apply(
+                    lambda x: to_snake_case(x) if x else 'unknown'
+                )
+                
+                # Clean DataFrame for Delta Lake
+                df_clean = clean_dataframe_for_delta(df_with_tz)
+                
+                # Convert all non-timezone columns to string for consistency
+                for col in df_clean.columns:
+                    if col not in ['ts_kst', 'ts_utc', 'dt_kst', 'dt_utc']:
+                        df_clean[col] = df_clean[col].astype(str)
+                
+                # Write per hour
+                mode = "append"
+                if not table_exists and not wrote_any:
+                    mode = "overwrite"
+                
+                write_kwargs = dict(
+                    mode=mode,
+                    storage_options=storage_options,
+                    partition_by=["dt_kst", "organization"],
+                )
+                if mode == "append":
+                    write_kwargs["schema_mode"] = "merge"
+                write_deltalake(delta_path, df_clean, **write_kwargs)
+                
+                wrote_any = True
+                total_saved += len(df_clean)
+                
+                # Update partition counts for summary
+                try:
+                    hour_counts = df_clean.groupby(['dt_kst', 'organization']).size()
+                    for key, cnt in hour_counts.items():
+                        partition_counts[key] = partition_counts.get(key, 0) + int(cnt)
+                except Exception:
+                    pass
+                
+                logger.info(f"✅ Hour {hour}: saved {len(df_clean)} events to Delta Lake")
+
+                # Cleanup temp file ASAP (if remains)
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+
+                # Remove processed raw file only after successful write
                 try:
                     client.remove_object(BUCKETS['raw'], raw_object)
                     logger.info(f"🗑️ Removed processed file: {raw_object}")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to remove raw file: {e}")
-                    
+                
             except Exception as e:
                 logger.error(f"❌ Failed to process hour {hour}: {e}")
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
                 continue
         
-        if not all_data:
-            logger.warning("⚠️ No data to process")
+        if not wrote_any:
+            logger.warning("⚠️ No data written to Delta Lake")
             return False
         
-        # Convert to DataFrame
-        df = pd.DataFrame(all_data)
-        logger.info(f"📊 Total events loaded: {len(df)}")
+        logger.info(f"✅ Successfully saved {total_saved} events to Delta Lake: {delta_path}")
         
-        # Filter by target organizations
-        df_filtered = filter_by_organizations(df, TARGET_ORGANIZATIONS)
-        logger.info(f"📊 Events after org filtering: {len(df_filtered)}")
-        
-        if len(df_filtered) == 0:
-            logger.warning("⚠️ No events match target organizations")
-            return False
-        
-        # Add timezone columns
-        df_with_tz = add_timezone_columns(df_filtered)
-        
-        # Add organization column for partitioning
-        df_with_tz['organization'] = df_with_tz['org'].apply(extract_organization_name)
-        
-        # Clean organization names for partitioning
-        df_with_tz['organization'] = df_with_tz['organization'].apply(
-            lambda x: to_snake_case(x) if x else 'unknown'
-        )
-        
-        # Clean DataFrame for Delta Lake
-        df_clean = clean_dataframe_for_delta(df_with_tz)
-        
-        # Convert all columns to string for consistency (except timezone columns)
-        for col in df_clean.columns:
-            if col not in ['ts_kst', 'ts_utc', 'dt_kst', 'dt_utc']:
-                df_clean[col] = df_clean[col].astype(str)
-        
-        # Save to Delta Lake with partitioning
-        logger.info(f"💾 Saving to Delta Lake: {delta_path}")
-        
-        # Check if table exists
-        try:
-            dt = DeltaTable(delta_path, storage_options=storage_options)
-            table_exists = True
-            logger.info("📋 Existing table found, appending data")
-        except:
-            table_exists = False
-            logger.info("📋 Creating new table")
-        
-        if table_exists:
-            # For existing table, append with merge on dt_kst + organization
-            write_deltalake(
-                delta_path,
-                df_clean,
-                mode="append",
-                storage_options=storage_options,
-                partition_by=["dt_kst", "organization"],
-                schema_mode="merge"
-            )
-        else:
-            # Create new table
-            write_deltalake(
-                delta_path,
-                df_clean,
-                mode="overwrite",
-                storage_options=storage_options,
-                partition_by=["dt_kst", "organization"]
-            )
-        
-        logger.info(f"✅ Successfully saved {len(df_clean)} events to Delta Lake")
-        
-        # Log partition summary
-        partition_summary = df_clean.groupby(['dt_kst', 'organization']).size()
-        logger.info(f"📊 Partition summary:\n{partition_summary}")
+        # Log partition summary across hours
+        if partition_counts:
+            try:
+                summary_lines = []
+                for (dt_kst_val, org_val), cnt in sorted(partition_counts.items()):
+                    summary_lines.append(f"{dt_kst_val} / {org_val}: {cnt}")
+                logger.info("📊 Partition summary:\n" + "\n".join(summary_lines))
+            except Exception:
+                pass
         
         return True
         
