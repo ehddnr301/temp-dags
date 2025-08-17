@@ -64,7 +64,7 @@ with DAG(
     dag_id='gh_archive_optimized_pipeline',
     default_args=default_args,
     start_date=pendulum.datetime(2025, 1, 1, tz='Asia/Seoul'),
-    schedule='0 3 * * *',  # Daily at 3 AM KST
+    schedule='0 10 * * *',  # Daily at 10 AM KST
     catchup=False,
     tags=['gh-archive', 'optimized', 'delta-lake'],
     description='Optimized GitHub Archive pipeline with timezone support and Delta Lake partitioning',
