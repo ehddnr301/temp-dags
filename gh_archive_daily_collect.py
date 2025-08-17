@@ -221,10 +221,12 @@ def process_and_filter_to_delta(date: str) -> bool:
                 # Clean DataFrame for Delta Lake
                 df_clean = clean_dataframe_for_delta(df_with_tz)
                 
-                # Convert all non-timezone columns to string for consistency
+                # Convert most columns to string for consistency, but preserve JSON columns
                 for col in df_clean.columns:
-                    if col not in ['ts_kst', 'ts_utc', 'dt_kst', 'dt_utc']:
+                    if col not in ['ts_kst', 'ts_utc', 'dt_kst', 'dt_utc', 'actor', 'repo', 'org', 'payload']:
                         df_clean[col] = df_clean[col].astype(str)
+                    # actor, repo, org, payload는 원본 딕셔너리 형태로 유지
+                    # 이렇게 하면 Trino에서 JSON 컬럼으로 인식됨
                 
                 # Write per hour
                 mode = "append"
