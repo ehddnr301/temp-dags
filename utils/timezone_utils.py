@@ -34,15 +34,13 @@ def add_timezone_columns(df: pd.DataFrame, created_at_col: str = 'created_at') -
         if df_copy[created_at_col].dt.tz is None:
             df_copy[created_at_col] = df_copy[created_at_col].dt.tz_localize('UTC')
         
-        # Create KST timezone object
-        kst_tz = pytz.timezone('Asia/Seoul')
-        
         # Add UTC timestamp and date
         df_copy['ts_utc'] = df_copy[created_at_col]
         df_copy['dt_utc'] = df_copy[created_at_col].dt.date
         
         # Add KST timestamp and date
-        df_copy['ts_kst'] = df_copy[created_at_col].dt.tz_convert(kst_tz)
+        # Shift actual timestamp by +9 hours instead of timezone conversion
+        df_copy['ts_kst'] = df_copy[created_at_col] + pd.Timedelta(hours=9)
         df_copy['dt_kst'] = df_copy['ts_kst'].dt.date
         
     else:

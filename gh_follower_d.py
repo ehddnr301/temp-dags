@@ -18,6 +18,7 @@ import pendulum
 
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from kubernetes.client import models as k8s
 
 
  
@@ -55,6 +56,18 @@ with DAG(
         name='gh-followers-following-collector',
         namespace='default',
         service_account_name='airflow',
+        pod_template_file='/opt/airflow/pod_template.yaml',
+        env_vars=[
+            k8s.V1EnvVar(
+                name="GITHUB_TOKEN",
+                value_from=k8s.V1EnvVarSource(
+                    secret_key_ref=k8s.V1SecretKeySelector(
+                        name="pseudo-secret",
+                        key="GITHUB_TOKEN",
+                    )
+                ),
+            ),
+        ],
         cmds=['python'],
         arguments=['/app/gh_follower_daily_collect.py'],
         get_logs=True,
