@@ -37,7 +37,7 @@ with DAG(
     dag_id='gh_followers_following_to_delta',
     default_args=default_args,
     start_date=pendulum.datetime(2025, 1, 1, tz='Asia/Seoul'),
-    schedule='0 6 * * *',  # daily 06:00 KST
+    schedule='0 0 * * *',  # daily 00:00 KST
     catchup=False,
     tags=['github', 'followers', 'delta-lake'],
     description='Collect GitHub followers/following for usernames and store in Delta Lake',
