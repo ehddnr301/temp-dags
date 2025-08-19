@@ -112,11 +112,11 @@ with DAG(
     process_task = KubernetesPodOperator(
         task_id='process_and_filter_to_delta',
         name='gh-archive-processor',
-        arguments=['/app/gh_archive_daily_collect.py', '{{ ds }}', 'process'],
+        arguments=['/app/gh_archive_daily_collect.py', "{{ logical_date.in_timezone('Asia/Seoul').strftime('%Y-%m-%d') }}", 'process'],
         labels={
             'gh-archive': 'process',
             'pipeline': 'optimized',
-            'date': '{{ ds }}'
+            'date': "{{ logical_date.in_timezone('Asia/Seoul').strftime('%Y-%m-%d') }}"
         },
         startup_timeout_seconds=1200,  # Longer timeout for processing
         doc_md="""
