@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import requests
+import logging
 import pandas as pd
 
 # Utils from this repo
@@ -14,6 +15,8 @@ from gh_archive_utils import get_storage_options, get_delta_table_path, to_snake
 
 # Delta Lake
 from deltalake import DeltaTable, write_deltalake
+
+logger = logging.getLogger(__name__)
 
 
 # -----------------------------
@@ -248,7 +251,7 @@ def run_collection() -> None:
         u = str(username).strip()
         if not u:
             continue
-        print(f"유저 수집 시작: {u}")
+        logger.info(f"유저 수집 시작: {u}")
         df = collect_user_relations([u], token)
         if df is None or len(df) == 0:
             continue
