@@ -53,12 +53,16 @@ with DAG(
         task_id='collect_and_store_followers_following',
         image="ehddnr/gh-followers",
         name='gh-followers-following-collector',
-        cmds=['python', '/app/gh_follower_daily_collect.py'],
-        # env_vars=env_vars,
+        namespace='default',
+        service_account_name='airflow',
+        cmds=['python'],
+        arguments=['/app/gh_follower_daily_collect.py'],
         get_logs=True,
         on_finish_action='delete_pod',
         in_cluster=True,
         image_pull_policy='Always',
+        reattach_on_restart=False,
+        startup_timeout_seconds=900,
         doc_md="""
         Fetch followers and following for configured GitHub usernames and write to Delta Lake.
 

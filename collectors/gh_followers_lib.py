@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 import requests
 import logging
+import sys as _sys
 import pandas as pd
 
 # Utils from this repo
@@ -16,6 +17,12 @@ from gh_archive_utils import get_storage_options, get_delta_table_path, to_snake
 # Delta Lake
 from deltalake import DeltaTable, write_deltalake
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
+    stream=_sys.stdout,
+    force=True,
+)
 logger = logging.getLogger(__name__)
 
 
@@ -70,6 +77,7 @@ def _fetch_all_pages(url: str, token: Optional[str]) -> List[Dict]:
     session = requests.Session()
     page = 1
     while True:
+        time.sleep(1)
         resp = session.get(
             url,
             headers=_headers(token),
@@ -134,6 +142,7 @@ def collect_user_relations(usernames: List[str], token: Optional[str]) -> pd.Dat
     collected_at = _now_utc_iso()
 
     for username in usernames:
+        time.sleep(1)
         username = username.strip()
         if not username:
             continue
@@ -247,6 +256,7 @@ def run_collection() -> None:
             "'TRINO_HOST', 'TRINO_PORT', 'TRINO_USER', 'TRINO_CATALOG', 'TRINO_SCHEMA', 'TRINO_USERS_SQL' 환경 설정을 확인하세요."
         )
     token = os.getenv("GITHUB_TOKEN")
+    logger.info(token)
     for username in usernames:
         u = str(username).strip()
         if not u:
