@@ -11,11 +11,13 @@ Key Features:
 """
 
 import pendulum
-from datetime import timedelta
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.utils.task_group import TaskGroup
+from airflow.timetables.interval import CronDataIntervalTimetable
 
+schedule = CronDataIntervalTimetable("0 10 * * *", timezone="Asia/Seoul")
 # Configuration
 TARGET_ORGANIZATIONS = ["CausalInferenceLab", "Pseudo-Lab", "apache"]
 TARGET_LOGINS_STR = ",".join(TARGET_ORGANIZATIONS)
@@ -61,10 +63,10 @@ COMMON_K8S_CONFIG = {
 }
 
 with DAG(
-    dag_id='gh_archive_optimized_pipeline',
+    dag_id='gh_archive_pipeline',
     default_args=default_args,
-    start_date=pendulum.datetime(2025, 1, 1, tz='Asia/Seoul'),
-    schedule='0 10 * * *',  # Daily at 10 AM KST
+    start_date=datetime(2025, 1, 1),
+    schedule=schedule,  # Daily at 10 AM KST
     catchup=False,
     tags=['gh-archive', 'optimized', 'delta-lake'],
     description='Optimized GitHub Archive pipeline with timezone support and Delta Lake partitioning',
