@@ -1,0 +1,23 @@
+dbt_gh_archive:
+  target: local
+  outputs:
+    local:
+      type: trino
+      user: admin
+      password: admin123
+      host: localhost
+      port: 30819
+      database: delta
+      schema: default
+      threads: 2
+      http_scheme: http
+    k8s:
+      type: trino
+      user: admin
+      password: admin123
+      host: trino
+      port: 8080
+      database: delta
+      schema: default
+      threads: 2
+      http_scheme: http
