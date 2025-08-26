@@ -1,0 +1,452 @@
+version: 2
+
+models:
+  - name: dl_watch_events
+    description: >-
+      DL 뷰. GitHub WatchEvent 중 payload.action = 'started'만 선별하여
+      대시보드용 최소 컬럼(event_id, repo_name, organization, user_login, ts_kst, base_date)을 노출합니다.
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login). repo_name에서 owner를 보정하여 추출
+      - name: user_login
+        description: 유저 로그인
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_push_events
+    description: PushEvent을 커밋 단위로 펼친 DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: ref_full
+        description: "전체 레퍼런스 이름(예: refs/heads/main)"
+      - name: ref_name
+        description: "레퍼런스 짧은 이름(예: main, v1.0.0)"
+      - name: is_branch_ref
+        description: 브랜치 레퍼런스 여부
+      - name: is_tag_ref
+        description: 태그 레퍼런스 여부
+      - name: head_sha
+        description: 푸시 후 HEAD 커밋 SHA
+      - name: before_sha
+        description: 푸시 전 HEAD 커밋 SHA
+      - name: commit_sha
+        description: 개별 커밋 SHA
+      - name: commit_author_name
+        description: 커밋 작성자 이름
+      - name: commit_author_email
+        description: 커밋 작성자 이메일
+      - name: commit_message
+        description: 커밋 메시지
+      - name: commit_distinct
+        description: 해당 푸시에서 distinct 커밋 여부
+      - name: commit_url
+        description: 커밋 URL
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_pull_request_events
+    description: PullRequestEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: pr_action
+        description: "PR 액션(예: opened, closed, reopened, synchronize)"
+      - name: pr_number
+        description: PR 번호
+      - name: pr_title
+        description: PR 제목
+      - name: pr_html_url
+        description: PR HTML URL
+      - name: pr_state
+        description: "PR 상태(open/closed)"
+      - name: is_draft
+        description: 드래프트 여부
+      - name: pr_body
+        description: PR 본문
+      - name: pr_author_login
+        description: PR 작성자 로그인
+      - name: pr_author_id
+        description: PR 작성자 ID
+      - name: head_ref
+        description: 헤드 브랜치명
+      - name: base_ref
+        description: 베이스 브랜치명
+      - name: head_sha
+        description: 헤드 커밋 SHA
+      - name: base_sha
+        description: 베이스 커밋 SHA
+      - name: commits_count
+        description: 커밋 수
+      - name: additions
+        description: 추가된 라인 수
+      - name: deletions
+        description: 삭제된 라인 수
+      - name: changed_files
+        description: 변경 파일 수
+      - name: issue_comments_count
+        description: 이슈 코멘트 수
+      - name: review_comments_count
+        description: 리뷰 코멘트 수
+      - name: is_merged
+        description: 병합 여부
+      - name: merge_commit_sha
+        description: 머지 커밋 SHA
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_issue_comment_events
+    description: IssueCommentEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: ic_action
+        description: 이슈 코멘트 액션(created/edited/deleted)
+      - name: issue_number
+        description: 이슈 번호
+      - name: issue_title
+        description: 이슈 제목
+      - name: issue_state
+        description: 이슈 상태(open/closed)
+      - name: issue_html_url
+        description: 이슈 HTML URL
+      - name: issue_author_login
+        description: 이슈 작성자 로그인
+      - name: issue_author_id
+        description: 이슈 작성자 ID
+      - name: comment_id
+        description: 코멘트 ID
+      - name: comment_html_url
+        description: 코멘트 HTML URL
+      - name: comment_body
+        description: 코멘트 본문
+      - name: commenter_login
+        description: 코멘트 작성자 로그인
+      - name: commenter_id
+        description: 코멘트 작성자 ID
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_issues_events
+    description: IssuesEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: issue_action
+        description: "이슈 액션(예: opened, closed, reopened, edited)"
+      - name: issue_number
+        description: 이슈 번호
+      - name: issue_title
+        description: 이슈 제목
+      - name: issue_body
+        description: 이슈 본문
+      - name: issue_state
+        description: "이슈 상태(open/closed)"
+      - name: issue_html_url
+        description: 이슈 HTML URL
+      - name: issue_author_login
+        description: 이슈 작성자 로그인
+      - name: issue_author_id
+        description: 이슈 작성자 ID
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_fork_events
+    description: ForkEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: forkee_id
+        description: 포크된 저장소 ID
+      - name: forkee_full_name
+        description: 포크된 저장소 전체 이름(owner/repo)
+      - name: forkee_html_url
+        description: 포크된 저장소 HTML URL
+      - name: forkee_owner_login
+        description: 포크 저장소 소유자 로그인
+      - name: forkee_owner_id
+        description: 포크 저장소 소유자 ID
+      - name: forkee_description
+        description: 포크 저장소 설명
+      - name: is_fork_private
+        description: 포크 저장소 비공개 여부
+      - name: forkee_default_branch
+        description: 포크 저장소 기본 브랜치
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_gollum_events
+    description: GollumEvent DL 뷰 (pages 확장)
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: page_name
+        description: 위키 페이지 이름
+      - name: page_title
+        description: 위키 페이지 제목
+      - name: page_summary
+        description: 위키 페이지 요약
+      - name: page_action
+        description: 페이지 액션(created/edited)
+      - name: page_sha
+        description: 페이지 관련 SHA
+      - name: page_html_url
+        description: 페이지 HTML URL
+      - name: is_page_created
+        description: 페이지 생성 여부
+      - name: is_page_edited
+        description: 페이지 수정 여부
+      - name: is_page_deleted
+        description: 페이지 삭제 여부
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_member_events
+    description: MemberEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: member_login
+        description: 멤버 로그인
+      - name: member_id
+        description: 멤버 ID
+      - name: member_html_url
+        description: 멤버 HTML URL
+      - name: member_action
+        description: 멤버 액션(added/removed)
+      - name: is_member_added
+        description: 멤버 추가 여부
+      - name: is_member_removed
+        description: 멤버 제거 여부
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_delete_events
+    description: DeleteEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: deleted_ref_type
+        description: 삭제된 레퍼런스 타입(branch/tag)
+      - name: deleted_ref_name
+        description: 삭제된 레퍼런스 이름
+      - name: pusher_type
+        description: 푸셔 타입(User/Organization/Bot)
+      - name: is_branch_deletion
+        description: 브랜치 삭제 여부
+      - name: is_tag_deletion
+        description: 태그 삭제 여부
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_create_events
+    description: CreateEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: created_ref_type
+        description: 생성된 레퍼런스 타입(branch/tag/repository)
+      - name: created_ref_name
+        description: 생성된 레퍼런스 이름
+      - name: default_branch
+        description: 저장소 기본 브랜치
+      - name: repo_description
+        description: 저장소 설명
+      - name: pusher_type
+        description: 푸셔 타입(User/Organization/Bot)
+      - name: is_repo_creation
+        description: 저장소 생성 여부
+      - name: is_branch_creation
+        description: 브랜치 생성 여부
+      - name: is_tag_creation
+        description: 태그 생성 여부
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_pull_request_review_comment_events
+    description: PullRequestReviewCommentEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: pr_review_comment_action
+        description: 리뷰 코멘트 액션(created/edited/deleted)
+      - name: review_comment_id
+        description: 리뷰 코멘트 ID
+      - name: review_comment_html_url
+        description: 리뷰 코멘트 HTML URL
+      - name: review_comment_body
+        description: 리뷰 코멘트 본문
+      - name: diff_hunk
+        description: 변경된 코드 diff hunk
+      - name: file_path
+        description: 파일 경로
+      - name: commit_id
+        description: 커밋 ID
+      - name: review_id
+        description: 리뷰 ID
+      - name: commenter_login
+        description: 코멘트 작성자 로그인
+      - name: commenter_id
+        description: 코멘트 작성자 ID
+      - name: pr_number
+        description: PR 번호
+      - name: pr_title
+        description: PR 제목
+      - name: pr_html_url
+        description: PR HTML URL
+      - name: pr_state
+        description: "PR 상태(open/closed)" 
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+  - name: dl_pull_request_review_events
+    description: PullRequestReviewEvent DL 뷰
+    config:
+      tags: ["bi", "dl"]
+    columns:
+      - name: event_id
+        description: GitHub 이벤트의 고유 식별자
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: organization
+        description: 조직(login)
+      - name: user_login
+        description: 유저 로그인
+      - name: reviewer_login
+        description: 리뷰어 로그인
+      - name: reviewer_id
+        description: 리뷰어 ID
+      - name: review_state
+        description: "리뷰 상태(approved/changes_requested/commented 등)"
+      - name: review_body
+        description: 리뷰 본문
+      - name: review_html_url
+        description: 리뷰 HTML URL
+      - name: commit_sha
+        description: 리뷰 대상 커밋 SHA
+      - name: review_submitted_at_utc
+        description: 리뷰 제출 시각(UTC)
+      - name: review_submitted_at_kst
+        description: 리뷰 제출 시각(KST)
+      - name: pr_number
+        description: PR 번호
+      - name: pr_title
+        description: PR 제목
+      - name: pr_html_url
+        description: PR HTML URL
+      - name: pr_author_login
+        description: PR 작성자 로그인
+      - name: ts_kst
+        description: 이벤트 발생 시각(KST)
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD, KST)
+
+

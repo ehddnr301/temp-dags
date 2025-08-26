@@ -1,0 +1,67 @@
+version: 2
+
+models:
+  - name: dm_activity_daily_org_repo
+    description: >-
+      DM 뷰. DW의 일자 x 조직 x 레포 x 이벤트 타입별 카운트를 그대로 노출.
+      대시보드/리포트에서 슬라이싱과 피벗에 활용합니다.
+    config:
+      tags: ["bi", "dm"]
+    columns:
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD)
+      - name: organization
+        description: 조직(login)
+      - name: repo
+        description: 저장소 전체 이름(owner/repo)
+      - name: event_type
+        description: "GitHub 이벤트 타입(예: WatchEvent, PushEvent 등)"
+      - name: event_count
+        description: 이벤트 수
+  - name: dm_activity_daily_heatmap
+    description: >-
+      Heatmap 시각화를 위한 일자 x 조직 x 레포 단위 이벤트 합계와 요일 라벨(dow_num/dow_en/dow_ko)을 제공하는 뷰
+    config:
+      tags: ["bi", "dm"]
+    columns:
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD)
+      - name: organization
+        description: 조직(login)
+      - name: repo
+        description: 저장소 전체 이름(owner/repo)
+      - name: events
+        description: 해당 일자의 총 이벤트 수
+      - name: dow_num
+        description: 요일 정렬용 숫자(1=월 … 7=일)
+      - name: dow_en
+        description: 영문 요일 약어(Mon/Tue/...)
+      - name: dow_ko
+        description: 한글 요일(월/화/수/목/금/토/일)
+  - name: dm_unique_users_by_org_repo
+    description: >-
+      조직 x 레포별 활동한 유저의 유니크 목록을 제공하는 테이블. 소스는 dw_activity_daily.
+    config:
+      tags: ["bi", "dm"]
+    columns:
+      - name: organization
+        description: 조직(login)
+      - name: repo
+        description: 저장소 전체 이름(owner/repo)
+      - name: user_login
+        description: 유저 로그인
+  - name: dm_watch_summary
+    description: >-
+      DM 요약 테이블. 조직 x 레포 x 일자별 신규 Watch(Star) 사용자 수를 제공합니다.
+      소스는 `dw_watch_daily`입니다.
+    config:
+      tags: ["bi", "dm"]
+    columns:
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD)
+      - name: organization
+        description: 조직(login)
+      - name: repo
+        description: 저장소 전체 이름(owner/repo)
+      - name: unique_watchers
+        description: 해당 일자/조직/레포의 신규 Watch 사용자 수(distinct user_login)

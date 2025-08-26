@@ -1,0 +1,1 @@
+dbt run --profiles-dir /home/dwlee/de-gh-insights/dbt_gh_archive/profiles --full-refresh

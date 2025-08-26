@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: dw_activity_daily
+    description: >-
+      DW 사실 테이블. 일자(base_date) x 조직 x 레포 x 이벤트 타입 단위의 활동 카운트.
+      상류 `stg_gh_events`에서 표준화된 이벤트를 증분 적재합니다.
+    config:
+      tags: ["bi", "dw"]
+    columns:
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD)
+      - name: organization
+        description: 조직(login)
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: event_type
+        description: "GitHub 이벤트 타입(예: WatchEvent, PushEvent 등)"
+      - name: event_count
+        description: 해당 키 조합에 대한 이벤트 수
+
+  - name: dw_watch_daily
+    description: >-
+      DW 사실 테이블. WatchEvent(started)만을 일자 x 조직 x 레포 x 사용자 단위로 집계.
+      상류 `dl_watch_events`에서 선별된 이벤트를 증분 적재합니다.
+    config:
+      tags: ["bi", "dw"]
+    columns:
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD)
+      - name: organization
+        description: 조직(login)
+      - name: repo_name
+        description: 저장소 전체 이름(owner/repo)
+      - name: user_login
+        description: 유저 로그인
+      - name: watch_started_count
+        description: 해당 키 조합에 대한 신규 Watch(Star) 이벤트 수
+  
+  - name: dw_activity_feed
+    description: >-
+      DW 뷰. 최신 활동 피드를 위한 이벤트 스트림을 제공합니다.
+      상류 `stg_gh_events`에서 표준화된 이벤트를 시간순으로 노출합니다.
+    config:
+      tags: ["bi", "dw"]

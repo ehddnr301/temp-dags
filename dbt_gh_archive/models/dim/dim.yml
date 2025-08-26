@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: dim_organization
+    description: Superset 필터용 조직 차원. DW에서 관측된 조직 목록.
+    config:
+      tags: ["bi", "dim"]
+    columns:
+      - name: organization
+        description: 조직 식별자(=login)
+
+  - name: dim_repository
+    description: Superset 필터용 레포 차원. owner/repo를 분리해 제공.
+    config:
+      tags: ["bi", "dim"]
+    columns:
+      - name: repo
+        description: repo 이름(owner/repo)
+      - name: organization
+        description: 소속 조직(login)
+
+  - name: dim_event_type
+    description: Superset 필터용 이벤트 타입 차원.
+    config:
+      tags: ["bi", "dim"]
+    columns:
+      - name: event_type
+        description: 이벤트 타입 식별자
+

@@ -1,0 +1,75 @@
+version: 2
+
+sources:
+  - name: delta_default
+    description: >-
+      Trino Delta 카탈로그 `delta`, 스키마 `default`에 등록된 GitHub Archive Delta 테이블.
+      MinIO 버킷 `gh-archive-delta`의 Delta Lake 데이터를 `CALL delta.system.register_table`로 등록해 사용합니다.
+      통합 테이블은 `dt_kst`(한국 시간 기준 날짜)와 `organization` 기준으로 파티셔닝되어 있으며, `dt_kst`는 `base_date`로 alias됩니다.
+    database: delta
+    schema: default
+    tables:
+      - name: gh_archive_filtered
+        description: >-
+          GitHub Archive의 모든 공개 이벤트를 통합한 Delta Lake 테이블. 저장 위치: `s3://gh-archive-delta/gh_archive_filtered`.
+          GitHub에서 발생하는 모든 공개 활동을 실시간으로 수집하며, 이벤트 타입은 PushEvent(코드 푸시), IssuesEvent(이슈 관리), 
+          PullRequestEvent(PR 관리), WatchEvent(스타), ForkEvent(포크), CreateEvent(저장소/브랜치 생성), DeleteEvent(삭제), 
+          ReleaseEvent(릴리스), CommitCommentEvent(커밋 댓글), IssueCommentEvent(이슈 댓글), PullRequestReviewEvent(PR 리뷰), 
+          PullRequestReviewCommentEvent(PR 리뷰 댓글), GollumEvent(위키), MemberEvent(멤버 관리), PublicEvent(저장소 공개), 
+          TeamAddEvent(팀 관리) 등 20여 가지를 포함합니다. 각 이벤트는 actor(사용자), repo(저장소), org(조직), payload(이벤트별 상세 정보)를 
+          JSON 형태로 포함하며, Delta Lake 포맷으로 `dt_kst`(한국 시간 기준 날짜)와 `organization` 기준으로 파티셔닝되어 있습니다.
+          `dt_kst` 컬럼은 `base_date`로 alias되어 모델에서 사용됩니다.
+        loaded_at_field: dt_kst
+        freshness:
+          warn_after: {count: 2, period: day}
+          error_after: {count: 7, period: day}
+        columns:
+          - name: id
+            description: GitHub 이벤트의 고유 식별자 (64비트 정수)
+            tests:
+              - not_null
+              - unique
+          - name: type
+            description: "GitHub 이벤트 타입 (예: PushEvent, IssuesEvent, PullRequestEvent, WatchEvent 등)"
+            tests:
+              - not_null
+          - name: actor
+            description: 이벤트를 발생시킨 사용자 정보를 담은 JSON 객체 (id, login, display_login, gravatar_id, url, avatar_url 포함)
+            tests:
+              - not_null
+          - name: repo
+            description: 이벤트가 발생한 저장소 정보를 담은 JSON 객체 (id, name, url 포함)
+            tests:
+              - not_null
+          - name: payload
+            description: 이벤트 타입별 상세 정보를 담은 JSON 객체 (이벤트마다 다른 구조를 가짐)
+          - name: public
+            description: 이벤트가 공개인지 여부를 나타내는 불린 값
+            tests:
+              - not_null
+          - name: created_at
+            description: 이벤트가 생성된 UTC 시간 (ISO 8601 형식)
+            tests:
+              - not_null
+          - name: org
+            description: 이벤트가 발생한 조직 정보를 담은 JSON 객체 (id, login, gravatar_id, url, avatar_url 포함)
+          - name: ts_utc
+            description: 이벤트 생성 시간의 UTC 타임스탬프
+            tests:
+              - not_null
+          - name: dt_utc
+            description: 이벤트 생성 날짜의 UTC 날짜 (YYYY-MM-DD)
+            tests:
+              - not_null
+          - name: ts_kst
+            description: 이벤트 생성 시간의 한국 시간(KST) 타임스탬프
+            tests:
+              - not_null
+          - name: dt_kst
+            description: 한국 시간 기준 파티션 날짜(YYYY-MM-DD)
+            tests:
+              - not_null
+          - name: organization
+            description: 조직명 파티션 (snake_case로 정규화됨)
+            tests:
+              - not_null

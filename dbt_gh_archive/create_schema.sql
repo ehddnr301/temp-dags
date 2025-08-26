@@ -1,0 +1,1 @@
+CREATE SCHEMA IF NOT EXISTS delta.default WITH (location='s3://gh-archive-delta/default');
