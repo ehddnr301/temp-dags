@@ -22,6 +22,71 @@ CALL delta.system.unregister_table(
     table_name => 'dl_repo_week'
 );
 
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_watch_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_push_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_issues_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_issue_comment_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_pull_request_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_pull_request_review_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_pull_request_review_comment_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_fork_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_member_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_delete_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_create_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dl_gollum_events'
+);
+
+CALL delta.system.unregister_table(
+    schema_name => 'default',
+    table_name => 'dw_activity_feed'
+);
+
 -- 새로 등록 (기본 설정)
 CALL delta.system.register_table(
     schema_name => 'default',
@@ -45,6 +110,84 @@ CALL delta.system.register_table(
     schema_name => 'default',
     table_name => 'dl_repo_week',
     table_location => 's3://gh-archive-delta/dl_repo_week'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_watch_events',
+    table_location => 's3://gh-archive-delta/dl/dl_watch_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_push_events',
+    table_location => 's3://gh-archive-delta/dl/dl_push_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_issues_events',
+    table_location => 's3://gh-archive-delta/dl/dl_issues_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_issue_comment_events',
+    table_location => 's3://gh-archive-delta/dl/dl_issue_comment_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_pull_request_events',
+    table_location => 's3://gh-archive-delta/dl/dl_pull_request_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_pull_request_review_events',
+    table_location => 's3://gh-archive-delta/dl/dl_pull_request_review_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_pull_request_review_comment_events',
+    table_location => 's3://gh-archive-delta/dl/dl_pull_request_review_comment_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_fork_events',
+    table_location => 's3://gh-archive-delta/dl/dl_fork_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_member_events',
+    table_location => 's3://gh-archive-delta/dl/dl_member_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_delete_events',
+    table_location => 's3://gh-archive-delta/dl/dl_delete_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_create_events',
+    table_location => 's3://gh-archive-delta/dl/dl_create_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dl_gollum_events',
+    table_location => 's3://gh-archive-delta/dl/dl_gollum_events'
+);
+
+CALL delta.system.register_table(
+    schema_name => 'default',
+    table_name => 'dw_activity_feed',
+    table_location => 's3://gh-archive-delta/dw/dw_activity_feed'
 );
 
 -- 참고: Delta Lake에서 JSON 컬럼을 자동으로 인식하지 못하는 경우

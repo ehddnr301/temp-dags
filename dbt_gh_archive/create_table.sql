@@ -12,6 +12,18 @@ CREATE TABLE IF NOT EXISTS delta.default.dl_watch_events (
        partitioned_by = ARRAY['base_date']
      );
 
+-- dm_watch_summary
+CREATE TABLE IF NOT EXISTS delta.default.dm_watch_summary (
+       base_date     date,
+       organization  varchar,
+       repo          varchar,
+       unique_watchers integer
+     )
+     WITH (
+       location = 's3://gh-archive-delta/dm/dm_watch_summary',
+       partitioned_by = ARRAY['base_date']
+     );
+
 -- dl_push_events
 CREATE TABLE IF NOT EXISTS delta.default.dl_push_events (
        event_id              varchar,
@@ -298,5 +310,47 @@ CREATE TABLE IF NOT EXISTS delta.default.dw_activity_feed (
      )
      WITH (
        location = 's3://gh-archive-delta/dw/dw_activity_feed',
+       partitioned_by = ARRAY['base_date']
+     );
+
+-- stg_gh_events
+CREATE TABLE IF NOT EXISTS delta.default.stg_gh_events (
+       event_id      varchar,
+       event_type    varchar,
+       repo_name     varchar,
+       organization  varchar,
+       actor_login   varchar,
+       ts_kst        timestamp(3) with time zone,
+       base_date     date
+     )
+     WITH (
+       location = 's3://gh-archive-delta/stg/stg_gh_events',
+       partitioned_by = ARRAY['base_date']
+     );
+
+-- dw_activity_daily
+CREATE TABLE IF NOT EXISTS delta.default.dw_activity_daily (
+       base_date     date,
+       organization  varchar,
+       repo_name     varchar,
+       event_type    varchar,
+       user_login    varchar,
+       event_count   integer
+     )
+     WITH (
+       location = 's3://gh-archive-delta/dw/dw_activity_daily',
+       partitioned_by = ARRAY['base_date']
+     );
+
+-- dw_watch_daily
+CREATE TABLE IF NOT EXISTS delta.default.dw_watch_daily (
+       base_date              date,
+       organization           varchar,
+       repo_name              varchar,
+       user_login             varchar,
+       watch_started_count    integer
+     )
+     WITH (
+       location = 's3://gh-archive-delta/dw/dw_watch_daily',
        partitioned_by = ARRAY['base_date']
      );

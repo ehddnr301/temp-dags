@@ -63,7 +63,7 @@ current="${START_DATE}"
 
 while [[ "${current}" < "${END_DATE}" || "${current}" == "${END_DATE}" ]]; do
   echo "[run_range] Loading date=${current} selector=(${SELECTOR})"
-  dbt run --profiles-dir /home/dwlee/de-gh-insights/dbt_gh_archive/profiles -s ${SELECTOR} --vars "load_base_date_kst: '${current}'"
+  dbt run --profiles-dir /home/dwlee/de-gh-insights/dags/dbt_gh_archive/profiles -s ${SELECTOR} --vars "load_base_date_kst: '${current}'"
 
   # 다음 날짜로 증가
   current=$(date -d "${current} + 1 day" +%F)

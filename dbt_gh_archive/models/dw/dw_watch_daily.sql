@@ -1,10 +1,25 @@
-{{ config(materialized='incremental', unique_key=['base_date','organization','repo_name','user_login']) }}
+{{ config(
+  materialized='incremental',
+  incremental_strategy='append',
+  on_schema_change='ignore',
+  on_table_exists='replace',
+  pre_hook=[
+    "{{ delete_by_base_date() }}"
+  ],
+  properties={
+    "location": "'s3://gh-archive-delta/dw/dw_watch_daily'",
+    "partitioned_by": "ARRAY['base_date']"
+  }
+) }}
 
 -- DW: 일자 × 조직 × 레포 × 유저 단위 WatchEvent (started) 카운트
 
 with base as (
   select base_date, organization, repo_name, user_login
   from {{ ref('dl_watch_events') }}
+{% if is_incremental() %}
+  where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 select
@@ -17,9 +32,6 @@ select
   user_login,
   count(*) as watch_started_count
 from base
-{% if is_incremental() %}
-where base_date > (select coalesce(max(base_date), date '1900-01-01') from {{ this }})
-{% endif %}
 group by 1,2,3,4
 
 

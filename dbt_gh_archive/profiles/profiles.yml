@@ -1,16 +1,16 @@
 dbt_gh_archive:
   target: k8s
   outputs:
-    # local:
-    #   type: trino
-    #   user: admin
-    #   password: admin123
-    #   host: localhost
-    #   port: 30819
-    #   catalog: delta
-    #   schema: default
-    #   threads: 2
-    #   http_scheme: http
+    local:
+      type: trino
+      user: admin
+      password: admin123
+      host: localhost
+      port: 30819
+      catalog: delta
+      schema: default
+      threads: 1
+      http_scheme: http
     k8s:
       type: trino
       user: admin

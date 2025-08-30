@@ -1,4 +1,5 @@
 from datetime import timedelta
+import os
 
 import pendulum
 from airflow import DAG
@@ -7,6 +8,9 @@ from airflow.timetables.interval import CronDataIntervalTimetable
 PROJECT_DIR = "/opt/airflow/dags/temp-dags/dbt_gh_archive"
 PROFILES_DIR = "/opt/airflow/dags/temp-dags/dbt_gh_archive/profiles"
 PROFILES_YML = f"{PROFILES_DIR}/profiles.yml"
+
+# Ensure dbt graph build (dbt ls) has required env var at parse time
+os.environ.setdefault("LOAD_BASE_DATE_KST", "1970-01-01")
 
 # Cosmos-based dbt orchestration (Kubernetes 실행 모드 및 미설치 예외처리 제거)
 from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig
@@ -22,7 +26,7 @@ default_args = {
 schedule = CronDataIntervalTimetable("0 11 * * *", timezone="Asia/Seoul")
 
 with DAG(
-    dag_id='dbt_gh_archive_cosmos',
+    dag_id='dbt_gh_archive',
     default_args=default_args,
     start_date=pendulum.datetime(2025, 1, 1, tz='Asia/Seoul'),
     schedule=schedule,
@@ -44,18 +48,15 @@ with DAG(
         ),
         operator_args={
             'dbt_cmd_flags': [
-                '--vars', '{"load_base_date_kst": "{{ ds }}"}',
                 '--target', 'k8s',
             ],
             'env': {
                 'DBT_TARGET_PATH': '/tmp/dbt_target',
                 'DBT_LOG_PATH': '/tmp/dbt_logs',
                 'DBT_SEND_ANONYMOUS_USAGE_STATS': 'false',
+                'LOAD_BASE_DATE_KST': '{{ ds }}',
             }
-        },
-        # execution_config=ExecutionConfig(
-        #     dbt_executable_path="/home/airflow/.local/bin/dbt",
-        # ),
+        }
     )
 
     dbt  # expose task group

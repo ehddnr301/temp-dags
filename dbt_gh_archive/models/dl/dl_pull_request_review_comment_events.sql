@@ -2,9 +2,14 @@
   materialized='incremental',
   incremental_strategy='append',
   on_schema_change='ignore',
+  on_table_exists='replace',
   pre_hook=[
     "{{ delete_by_base_date() }}"
-  ]
+  ],
+  properties={
+    "location": "'s3://gh-archive-delta/dl/dl_pull_request_review_comment_events'",
+    "partitioned_by": "ARRAY['base_date']"
+  }
 ) }}
 
 -- DL: PullRequestReviewCommentEvent 원천 필터 뷰
@@ -13,6 +18,9 @@ with src as (
   select *
   from {{ source('delta_default', 'gh_archive_filtered') }}
   where cast(type as varchar) = 'PullRequestReviewCommentEvent'
+{% if is_incremental() %}
+    and cast(dt_kst as date) = {{ load_base_date_kst() }}
+{% endif %}
 )
 
  , final as (
@@ -51,7 +59,7 @@ with src as (
     cast(ts_kst as timestamp(3) with time zone)          as ts_kst,
     cast(dt_kst as date)                                 as base_date
   from src
-  where cast(dt_kst as date) = {{ load_base_date_kst() }}
+ 
 )
 
 select *

@@ -2,9 +2,14 @@
   materialized='incremental',
   incremental_strategy='append',
   on_schema_change='ignore',
+  on_table_exists='replace',
   pre_hook=[
     "{{ delete_by_base_date() }}"
-  ]
+  ],
+  properties={
+    "location": "'s3://gh-archive-delta/dl/dl_push_events'",
+    "partitioned_by": "ARRAY['base_date']"
+  }
 ) }}
 
 -- DL: PushEvent (커밋 단위로 펼친 뷰)
@@ -15,6 +20,9 @@ with src as (
   select *
   from {{ source('delta_default', 'gh_archive_filtered') }}
   where cast(type as varchar) = 'PushEvent'
+{% if is_incremental() %}
+    and cast(dt_kst as date) = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , commits as (
@@ -64,17 +72,11 @@ with src as (
     cast(ts_kst as timestamp(3) with time zone)          as ts_kst,
     cast(dt_kst as date)                                 as base_date
   from commits
-  where cast(dt_kst as date) = {{ load_base_date_kst() }}
+ 
 )
 
 select *
 from final
-{% if is_incremental() %}
-where not exists (
-  select 1 from {{ this }} t
-  where t.event_id = final.event_id
-    and coalesce(t.commit_sha, '') = coalesce(final.commit_sha, '')
-)
-{% endif %}
+ 
 
 

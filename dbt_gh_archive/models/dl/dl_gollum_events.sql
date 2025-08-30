@@ -2,9 +2,14 @@
   materialized='incremental',
   incremental_strategy='append',
   on_schema_change='ignore',
+  on_table_exists='replace',
   pre_hook=[
     "{{ delete_by_base_date() }}"
-  ]
+  ],
+  properties={
+    "location": "'s3://gh-archive-delta/dl/dl_gollum_events'",
+    "partitioned_by": "ARRAY['base_date']"
+  }
 ) }}
 
 -- DL: GollumEvent 원천 필터 뷰 (payload.pages 배열을 행으로 확장)
@@ -13,6 +18,9 @@ with src as (
   select *
   from {{ source('delta_default', 'gh_archive_filtered') }}
   where cast(type as varchar) = 'GollumEvent'
+{% if is_incremental() %}
+    and cast(dt_kst as date) = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , pages as (
@@ -53,17 +61,11 @@ with src as (
     ts_kst,
     cast(dt_kst as date)                                 as base_date
   from pages
-  where cast(dt_kst as date) = {{ load_base_date_kst() }}
+ 
 )
 
 select *
 from final
-{% if is_incremental() %}
-where not exists (
-  select 1 from {{ this }} t
-  where t.event_id = final.event_id
-    and coalesce(t.page_sha, '') = coalesce(final.page_sha, '')
-)
-{% endif %}
+ 
 
 

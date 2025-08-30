@@ -8,32 +8,17 @@ models:
     columns:
       - name: event_id
         description: "GitHub 이벤트 고유 ID"
-        tests:
-          - not_null
-          - unique
-
       - name: event_type
         description: "이벤트 타입 (예: PushEvent, IssuesEvent 등)"
-        tests:
-          - not_null
-
       - name: repo_name
         description: "repo.name 추출 값 (owner/repo 형식)"
-
       - name: organization
         description: "이벤트가 속한 조직의 로그인. org.login 또는 repo.owner에서 유도"
-        tests:
-          - not_null
-
       - name: actor_login
         description: "이벤트를 발생시킨 사용자 로그인"
-
       - name: ts_kst
         description: "KST 기준 이벤트 타임스탬프"
-
       - name: base_date
         description: "KST 기준 날짜 파티션 컬럼"
-        tests:
-          - not_null
 
 

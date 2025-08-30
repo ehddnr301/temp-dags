@@ -9,11 +9,26 @@
 -- is_incremental()란?
 --   - dbt 매크로로, 현재 실행이 증분 모드일 때 true
 --   - 최초 생성/--full-refresh 시 false → 전체 재적재
-{{ config(materialized='incremental', unique_key=['dt_kst','organization','repo_name','event_type']) }}
+{{ config(
+  materialized='incremental',
+  incremental_strategy='append',
+  on_schema_change='ignore',
+  on_table_exists='replace',
+  pre_hook=[
+    "{{ delete_by_base_date() }}"
+  ],
+  properties={
+    "location": "'s3://gh-archive-delta/dw/dw_activity_daily'",
+    "partitioned_by": "ARRAY['base_date']"
+  }
+) }}
 
 with e as (
   select base_date, organization, repo_name, event_type, actor_login
   from {{ ref('stg_gh_events') }}
+{% if is_incremental() %}
+  where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 select
@@ -27,10 +42,6 @@ select
   actor_login as user_login,
   count(*) as event_count
 from e
-{% if is_incremental() %}
--- 증분 실행 시: 대상 테이블의 마지막 처리 일자 이후만 적재
-where base_date > (select coalesce(max(base_date), date '1900-01-01') from {{ this }})
-{% endif %}
 group by 1,2,3,4,5
 
 

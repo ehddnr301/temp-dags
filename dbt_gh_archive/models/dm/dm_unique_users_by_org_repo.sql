@@ -1,4 +1,4 @@
-{{ config(materialized='table') }}
+{{ config(materialized='view') }}
 
 -- DM: 조직 × 레포별 유니크한 유저 목록
 -- 소스: dw_activity_daily (일자별 집계 사실 테이블)

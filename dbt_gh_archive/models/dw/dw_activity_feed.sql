@@ -2,9 +2,14 @@
   materialized='incremental',
   incremental_strategy='append',
   on_schema_change='ignore',
+  on_table_exists='replace',
   pre_hook=[
     "{{ delete_by_base_date() }}"
-  ]
+  ],
+  properties={
+    "location": "'s3://gh-archive-delta/dw/dw_activity_feed'",
+    "partitioned_by": "ARRAY['base_date']"
+  }
 ) }}
 
 -- DW: 모든 GitHub 활동을 단일 피드로 통합
@@ -32,7 +37,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_push_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , issues as (
@@ -51,7 +58,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_issues_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , issue_comment as (
@@ -65,7 +74,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_issue_comment_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , pr as (
@@ -85,7 +96,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_pull_request_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , pr_review as (
@@ -99,7 +112,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_pull_request_review_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , pr_review_comment as (
@@ -113,7 +128,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_pull_request_review_comment_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , watch as (
@@ -127,7 +144,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_watch_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , fork as (
@@ -141,7 +160,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_fork_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , member as (
@@ -159,7 +180,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_member_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , create_evt as (
@@ -178,7 +201,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_create_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , delete_evt as (
@@ -196,7 +221,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_delete_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 , gollum as (
@@ -210,7 +237,9 @@ push as (
     ts_kst,
     base_date
   from {{ ref('dl_gollum_events') }}
+{% if is_incremental() %}
   where base_date = {{ load_base_date_kst() }}
+{% endif %}
 )
 
 select * from (
@@ -228,11 +257,6 @@ select * from (
   union all select * from gollum
 )
 as all_activities
-{% if is_incremental() %}
-where not exists (
-  select 1 from {{ this }} t
-  where t.activity_id = all_activities.activity_id
-)
-{% endif %}
+ 
 
 
