@@ -23,36 +23,36 @@ TARGET_ORGANIZATIONS = ["CausalInferenceLab", "Pseudo-Lab", "apache"]
 TARGET_LOGINS_STR = ",".join(TARGET_ORGANIZATIONS)
 
 default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'retries': 2,
-    'retry_delay': timedelta(minutes=10),
-    'timezone': 'Asia/Seoul',
-    'max_active_runs': 1,  # Prevent overlapping runs
+    "owner": "airflow",
+    "depends_on_past": False,
+    "retries": 2,
+    "retry_delay": timedelta(minutes=10),
+    "timezone": "Asia/Seoul",
+    "max_active_runs": 1,  # Prevent overlapping runs
 }
 
 # Common Kubernetes Pod configuration
 COMMON_K8S_CONFIG = {
-    'namespace': 'default',
-    'image': 'ehddnr/gh-archive-daily-collector:latest',  # Updated image with enhanced collector
-    'image_pull_policy': 'Always',
-    'cmds': ['python'],
-    'get_logs': True,
-    'on_finish_action': 'delete_pod',
-    'in_cluster': True,
-    'startup_timeout_seconds': 900,  # Increased timeout for processing
-    'service_account_name': 'airflow',
-    'termination_grace_period': 60,  # Graceful shutdown
-    'reattach_on_restart': False,
-    'affinity': {
-        'nodeAffinity': {
-            'requiredDuringSchedulingIgnoredDuringExecution': {
-                'nodeSelectorTerms': [
+    "namespace": "default",
+    "image": "ehddnr/gh-archive-daily-collector:latest",  # Updated image with enhanced collector
+    "image_pull_policy": "Always",
+    "cmds": ["python"],
+    "get_logs": True,
+    "on_finish_action": "delete_pod",
+    "in_cluster": True,
+    "startup_timeout_seconds": 900,  # Increased timeout for processing
+    "service_account_name": "airflow",
+    "termination_grace_period": 60,  # Graceful shutdown
+    "reattach_on_restart": False,
+    "affinity": {
+        "nodeAffinity": {
+            "requiredDuringSchedulingIgnoredDuringExecution": {
+                "nodeSelectorTerms": [
                     {
-                        'matchExpressions': [
+                        "matchExpressions": [
                             {
-                                'key': 'node-role.kubernetes.io/worker',
-                                'operator': 'Exists'
+                                "key": "node-role.kubernetes.io/control-plane",
+                                "operator": "Exists",
                             }
                         ]
                     }
@@ -63,13 +63,13 @@ COMMON_K8S_CONFIG = {
 }
 
 with DAG(
-    dag_id='gh_archive_pipeline',
+    dag_id="gh_archive_pipeline",
     default_args=default_args,
     start_date=datetime(2025, 1, 1),
     schedule=schedule,  # Daily at 10 AM KST
     catchup=False,
-    tags=['gh-archive', 'optimized', 'delta-lake'],
-    description='Optimized GitHub Archive pipeline with timezone support and Delta Lake partitioning',
+    tags=["gh-archive", "optimized", "delta-lake"],
+    description="Optimized GitHub Archive pipeline with timezone support and Delta Lake partitioning",
     doc_md="""
     # GitHub Archive Optimized Pipeline
     
@@ -87,19 +87,15 @@ with DAG(
     2. **Process**: Filter by organizations and add timezone columns
     3. **Store**: Save to Delta Lake with optimal partitioning
     
-    """
+    """,
 ) as dag:
 
     # 1. Data Download Task
     download_task = KubernetesPodOperator(
-        task_id='download_gh_archive_data',
-        name='gh-archive-downloader',
-        arguments=['/app/gh_archive_daily_collect.py', '{{ ds }}', 'download'],
-        labels={
-            'gh-archive': 'download',
-            'pipeline': 'optimized',
-            'date': '{{ ds }}'
-        },
+        task_id="download_gh_archive_data",
+        name="gh-archive-downloader",
+        arguments=["/app/gh_archive_daily_collect.py", "{{ ds }}", "download"],
+        labels={"gh-archive": "download", "pipeline": "optimized", "date": "{{ ds }}"},
         doc_md="""
         Download GitHub Archive data for the execution date.
         
@@ -112,13 +108,17 @@ with DAG(
 
     # 2. Process and Filter Task (replaces multiple steps from original)
     process_task = KubernetesPodOperator(
-        task_id='process_and_filter_to_delta',
-        name='gh-archive-processor',
-        arguments=['/app/gh_archive_daily_collect.py', "{{ logical_date.in_timezone('Asia/Seoul').strftime('%Y-%m-%d') }}", 'process'],
+        task_id="process_and_filter_to_delta",
+        name="gh-archive-processor",
+        arguments=[
+            "/app/gh_archive_daily_collect.py",
+            "{{ logical_date.in_timezone('Asia/Seoul').strftime('%Y-%m-%d') }}",
+            "process",
+        ],
         labels={
-            'gh-archive': 'process',
-            'pipeline': 'optimized',
-            'date': "{{ logical_date.in_timezone('Asia/Seoul').strftime('%Y-%m-%d') }}"
+            "gh-archive": "process",
+            "pipeline": "optimized",
+            "date": "{{ logical_date.in_timezone('Asia/Seoul').strftime('%Y-%m-%d') }}",
         },
         startup_timeout_seconds=1200,  # Longer timeout for processing
         doc_md="""
@@ -130,8 +130,11 @@ with DAG(
         - Direct Delta Lake storage with partitioning
         - Automatic cleanup of raw files
         """,
-        **{k: v for k, v in COMMON_K8S_CONFIG.items() 
-           if k not in ['startup_timeout_seconds', 'resources']}
+        **{
+            k: v
+            for k, v in COMMON_K8S_CONFIG.items()
+            if k not in ["startup_timeout_seconds", "resources"]
+        }
     )
 
     # Task Dependencies
