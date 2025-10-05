@@ -31,3 +31,41 @@ models:
       - name: event_type
         description: 이벤트 타입 식별자
 
+  - name: dim_user
+    description: 사용자 차원. 첫/마지막 활동일, 이벤트 사용 여부, 빌더 여부 포함.
+    config:
+      tags: ["bi", "dim"]
+    columns:
+      - name: user_login
+        description: 사용자 로그인
+      - name: first_seen_date
+        description: DW에서 해당 사용자가 처음 관측된 날짜(base_date 최소값)
+      - name: first_seen_organization
+        description: 사용자가 처음 관측된 조직(login)
+      - name: first_seen_repo
+        description: 사용자가 처음 관측된 저장소(owner/repo)
+      - name: last_seen_date
+        description: DW에서 해당 사용자가 마지막으로 관측된 날짜(base_date 최대값)
+      - name: last_seen_organization
+        description: 사용자가 마지막으로 관측된 조직(login)
+      - name: last_seen_repo
+        description: 사용자가 마지막으로 관측된 저장소(owner/repo)
+      - name: has_create_event
+        description: CreateEvent 경험 여부(한 번이라도 발생)
+      - name: has_member_event
+        description: MemberEvent 경험 여부(한 번이라도 발생)
+      - name: has_pull_request_event
+        description: PullRequestEvent 경험 여부(한 번이라도 발생)
+      - name: has_pr_review_comment_event
+        description: PullRequestReviewCommentEvent 경험 여부(한 번이라도 발생)
+      - name: has_push_event
+        description: PushEvent 경험 여부(한 번이라도 발생)
+      - name: has_issues_event
+        description: IssuesEvent 경험 여부(한 번이라도 발생)
+      - name: has_watch_event
+        description: WatchEvent 경험 여부(한 번이라도 발생)
+      - name: is_builder
+        description: 저장소 생성(CreateEvent with repository) 수행 경험 여부, 스터디 빌더를 의미
+      - name: builder_first_date
+        description: 최초 저장소 생성일
+
