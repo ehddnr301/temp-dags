@@ -8,6 +8,8 @@ models:
     columns:
       - name: organization
         description: 조직 식별자(=login)
+      - name: first_seen_date
+        description: DW에서 해당 조직이 처음 관측된 날짜(base_date 최소값)
 
   - name: dim_repository
     description: Superset 필터용 레포 차원. owner/repo를 분리해 제공.
@@ -18,6 +20,8 @@ models:
         description: repo 이름(owner/repo)
       - name: organization
         description: 소속 조직(login)
+      - name: first_seen_date
+        description: DW에서 해당 레포가 처음 관측된 날짜(base_date 최소값)
 
   - name: dim_event_type
     description: Superset 필터용 이벤트 타입 차원.
