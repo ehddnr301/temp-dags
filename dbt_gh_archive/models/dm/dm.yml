@@ -45,3 +45,176 @@ models:
         description: 저장소 전체 이름(owner/repo)
       - name: unique_watchers
         description: 해당 일자/조직/레포의 신규 Watch 사용자 수(distinct user_login)
+  
+  - name: dm_active_users_daily
+    description: >-
+      DM 지표 테이블. 일별/주별/월별 활성 사용자 수(DAU/WAU/MAU)를 제공합니다.
+      Active User는 Light/Medium/Heavy 3단계로 구분됩니다.
+      - Light Active: WatchEvent, ForkEvent (관심 표현)
+      - Medium Active: PushEvent, CreateEvent, DeleteEvent (코드 기여)
+      - Heavy Active: PullRequestEvent, PullRequestReviewEvent, PullRequestReviewCommentEvent, IssuesEvent, IssueCommentEvent (협업)
+      소스는 `dw_activity_daily`입니다.
+    config:
+      tags: ["bi", "dm", "engagement"]
+    columns:
+      - name: base_date
+        description: 기준 일자(YYYY-MM-DD)
+      - name: organization
+        description: 조직(login)
+      - name: repo_name
+        description: 저장소 short name
+      - name: dau_any
+        description: 일별 활성 사용자 수 (전체, 하나라도 활동한 사용자)
+      - name: dau_light
+        description: 일별 Light Active 사용자 수 (WatchEvent, ForkEvent)
+      - name: dau_medium
+        description: 일별 Medium Active 사용자 수 (PushEvent, CreateEvent, DeleteEvent)
+      - name: dau_heavy
+        description: 일별 Heavy Active 사용자 수 (PR, Review, Issue 관련)
+      - name: wau_any
+        description: 주별 활성 사용자 수 (최근 7일, 전체)
+      - name: wau_light
+        description: 주별 Light Active 사용자 수 (최근 7일)
+      - name: wau_medium
+        description: 주별 Medium Active 사용자 수 (최근 7일)
+      - name: wau_heavy
+        description: 주별 Heavy Active 사용자 수 (최근 7일)
+      - name: mau_any
+        description: 월별 활성 사용자 수 (최근 30일, 전체)
+      - name: mau_light
+        description: 월별 Light Active 사용자 수 (최근 30일)
+      - name: mau_medium
+        description: 월별 Medium Active 사용자 수 (최근 30일)
+      - name: mau_heavy
+        description: 월별 Heavy Active 사용자 수 (최근 30일)
+      - name: stickiness_ratio
+        description: "참여도 지표 (DAU/MAU 비율). 높을수록 사용자들이 자주 방문함을 의미 (0.0 ~ 1.0)"
+      - name: new_users_count
+        description: 신규 사용자 수 (해당 일자에 처음 관측된 사용자)
+      - name: returning_users_count
+        description: 복귀 사용자 수 (7일 이상 비활동 후 다시 활동한 사용자)
+  
+  - name: dm_user_retention
+    description: >-
+      DM 코호트 분석 테이블. 신규 유입 사용자의 Retention(재방문율)을 추적합니다.
+      코호트는 first_seen_date 기준으로 정의되며, Day 1, 7, 14, 30, 60, 90 시점의 Retention을 측정합니다.
+      활동 타입별(Light/Medium/Heavy) Retention 비교를 통해 사용자 참여 깊이와 유지율의 관계를 분석합니다.
+      Materialization: table (전체 재계산 - 코호트 간 의존성 때문)
+      소스는 `dw_activity_daily`입니다.
+    config:
+      tags: ["bi", "dm", "retention", "cohort"]
+    columns:
+      - name: cohort_date
+        description: 코호트 기준일 (사용자가 처음 관측된 날짜, first_seen_date)
+      - name: organization
+        description: 조직(login)
+      - name: repo_name
+        description: 저장소 short name
+      - name: days_since_cohort
+        description: "코호트 이후 경과 일수 (1, 7, 14, 30, 60, 90)"
+      - name: retention_check_date
+        description: Retention 측정 시점 날짜 (cohort_date + days_since_cohort)
+      - name: cohort_size
+        description: 해당 코호트의 전체 사용자 수
+      - name: cohort_activity_type
+        description: "코호트의 첫 활동 타입 (Light/Medium/Heavy/Unknown)"
+      - name: retained_users_any
+        description: N일 후에도 활동한 사용자 수 (전체)
+      - name: retained_users_light
+        description: N일 후에도 Light Active 활동한 사용자 수
+      - name: retained_users_medium
+        description: N일 후에도 Medium Active 활동한 사용자 수
+      - name: retained_users_heavy
+        description: N일 후에도 Heavy Active 활동한 사용자 수
+      - name: retention_rate_any
+        description: "Retention Rate (전체). retained_users_any / cohort_size (0.0 ~ 1.0)"
+      - name: retention_rate_light
+        description: "Light Active Retention Rate. retained_users_light / cohort_size (0.0 ~ 1.0)"
+      - name: retention_rate_medium
+        description: "Medium Active Retention Rate. retained_users_medium / cohort_size (0.0 ~ 1.0)"
+      - name: retention_rate_heavy
+        description: "Heavy Active Retention Rate. retained_users_heavy / cohort_size (0.0 ~ 1.0)"
+  
+  - name: dm_user_cohort_summary
+    description: >-
+      DM 코호트 요약 테이블. 월별 코호트를 집계하여 신규 유입 품질과 Retention 패턴을 비교합니다.
+      dm_user_retention 데이터를 월 단위로 요약하며, Day 1/7/14/30/60/90 Retention의 가중 평균을 제공합니다.
+      활동 타입별(Light/Medium/Heavy) 유입 비율과 평균 활동 지표를 통해 코호트 품질을 평가할 수 있습니다.
+      Materialization: table (전체 재계산)
+      소스는 `dm_user_retention`, `dw_activity_daily`입니다.
+    config:
+      tags: ["bi", "dm", "retention", "cohort", "summary"]
+    columns:
+      - name: cohort_month
+        description: "코호트 월 (YYYY-MM 형식)"
+      - name: organization
+        description: 조직(login)
+      - name: repo_name
+        description: 저장소 short name
+      - name: cohort_size
+        description: 해당 월에 유입된 전체 신규 사용자 수
+      - name: light_users_count
+        description: "Light Active로 시작한 사용자 수 (WatchEvent, ForkEvent)"
+      - name: medium_users_count
+        description: "Medium Active로 시작한 사용자 수 (PushEvent, CreateEvent, DeleteEvent)"
+      - name: heavy_users_count
+        description: "Heavy Active로 시작한 사용자 수 (PR, Review, Issue 관련)"
+      - name: day1_retention
+        description: "Day 1 Retention 가중 평균 (0.0 ~ 1.0)"
+      - name: day7_retention
+        description: "Day 7 Retention 가중 평균 (0.0 ~ 1.0) - 가장 중요한 지표"
+      - name: day14_retention
+        description: "Day 14 Retention 가중 평균 (0.0 ~ 1.0)"
+      - name: day30_retention
+        description: "Day 30 Retention 가중 평균 (0.0 ~ 1.0)"
+      - name: day60_retention
+        description: "Day 60 Retention 가중 평균 (0.0 ~ 1.0)"
+      - name: day90_retention
+        description: "Day 90 Retention 가중 평균 (0.0 ~ 1.0)"
+      - name: avg_events_per_user
+        description: 코호트 내 사용자의 평균 이벤트 수 (전체 활동 기간)
+      - name: avg_active_days_per_user
+        description: 코호트 내 사용자의 평균 활동 일수
+      - name: avg_lifetime_days
+        description: 첫 활동일부터 마지막 활동일까지 평균 기간 (일)
+  
+  - name: dm_org_overview
+    description: >-
+      DM 조직 전체 현황 테이블. 여러 레포지토리를 조직 단위로 통합하여 KPI를 제공합니다.
+      일별/주별/월별 3가지 집계 수준을 지원하며, 저장소 현황, 구성원 현황, 활동 현황을 종합적으로 제공합니다.
+      신규 기여자 유입, 활동 타입별 이벤트 수를 통해 조직의 성장과 건강도를 측정할 수 있습니다.
+      Materialization: table (전체 재계산)
+      소스는 `dw_activity_daily`입니다.
+    config:
+      tags: ["bi", "dm", "organization", "overview"]
+    columns:
+      - name: activity_date
+        description: "활동 기준 일자 (집계 수준에 따라 일/주/월의 시작일)"
+      - name: aggregation_level
+        description: "집계 수준 (day: 일별, week: 주별, month: 월별)"
+      - name: organization
+        description: 조직(login)
+      - name: total_repos_count
+        description: 해당 기간 활동이 있는 레포지토리 수
+      - name: active_repos_count
+        description: 해당 기간 활발히 활동한 레포지토리 수
+      - name: total_contributors_count
+        description: 해당 기간 활동한 전체 기여자 수 (유니크)
+      - name: new_contributors_count
+        description: 해당 기간 처음 활동한 신규 기여자 수
+      - name: active_contributors_count
+        description: 해당 기간 활발히 활동한 기여자 수
+      - name: total_commits_count
+        description: "전체 커밋 수 (PushEvent)"
+      - name: total_pr_count
+        description: "전체 PR 수 (PullRequestEvent)"
+      - name: total_issues_count
+        description: "전체 이슈 수 (IssuesEvent)"
+      - name: total_reviews_count
+        description: "전체 리뷰 수 (PullRequestReviewEvent + PullRequestReviewCommentEvent)"
+      - name: total_stars_count
+        description: "전체 Star 수 (WatchEvent)"
+      - name: total_forks_count
+        description: "전체 Fork 수 (ForkEvent)"
+      - name: total_events_count
+        description: 모든 이벤트의 합계
