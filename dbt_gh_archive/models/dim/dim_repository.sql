@@ -16,7 +16,7 @@ with base as (
 
 select
   b.organization,
-  b.repo,
+  b.repo AS repo_name,
   b.first_seen_date
 from base b
 
